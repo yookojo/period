@@ -1,4 +1,4 @@
-"""Not part of this copy of Dot: pd_playground_memory is one of the original owner's personal add-ons.
+"""Not part of this copy of Dot: pd_remote_memory is one of the original owner's personal add-ons.
 
 Every name here is a harmless no-op (falsy, callable, returns itself), so code that imports it still loads;
 pd_dots.owner_extras() keeps the add-on switched off anyway.

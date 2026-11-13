@@ -33,4 +33,8 @@ More detail, including what macOS asks permission for: [docs/MAC.md](docs/MAC.md
 
 - It only works while your Mac is awake.
 - When your Claude plan hits its limit, Period says so and waits for the plan to reset.
+- Period calls the official Claude Code app (`claude -p`) on your own computer, signed in to your own plan.
+  Anthropic says that use counts against your plan's limits
+  ([Claude Help Center](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)),
+  but its rules for automated use have changed several times in 2026. Check the current terms if you run it heavily.
 - Everything it remembers (memory, rules, chats) stays on your Mac in `~/.period_dots/`.

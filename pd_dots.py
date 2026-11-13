@@ -4210,8 +4210,8 @@ def keep_login_fresh():
         ok = False
         try:
             ok = bool(s.renew_login_if_due(s.load_config(), hours_before=1, quiet=True))
-            if not ok and getattr(s, "_LOGIN_PROBLEM", [None])[0] == "playground":
-                print(f"[login renew] {s.PLAYGROUND_REFUSED_MSG}", file=sys.stderr)
+            if not ok and getattr(s, "_LOGIN_PROBLEM", [None])[0] == "remote":
+                print(f"[login renew] {s.REMOTE_REFUSED_MSG}", file=sys.stderr)
             elif not ok and (s.login_hours_left(s.load_config()) or 0) <= 1:
                 print("[login renew] background renewal didn't finish (the remote backend may want a sign-in)",
                       file=sys.stderr)

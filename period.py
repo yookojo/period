@@ -1,6 +1,6 @@
 """
 Period v2.5 - Autonomous Terminal Coding Agent (Top-Tier Edition)
-Powered by the old remote backend.
+Powered by the remote backend AI remote backend.
 Features:
 - Live Rich TUI with syntax highlighting, streaming, and panels.
 - Prompt-Toolkit with persistent history, fuzzy slash-commands, and @file completion.
@@ -75,8 +75,8 @@ console = Console()
 __version__ = "2.15.0"
 
 # Vibrant the remote backend Spinner (Claude-style energy & color shift)
-# - Starts in official the remote backend Cardinal red (#8C1515)
-# - Shifts to high-saturation Cardinal Hot (#C41E3A) after 8s
+# - Starts in official the remote backend Crimson red (#8B1A1A)
+# - Shifts to high-saturation Crimson Hot (#C41E3A) after 8s
 # - Shifts to warm Amber (#FFB347) for long-thinking tasks (>15s)
 # - Dynamic soft pulse every ~600ms so the 'S' glyph stays alive
 def _format_elapsed(seconds):
@@ -108,9 +108,9 @@ class RemoteVibrantSpinner(Spinner):
 
         # Claude-style warm-up color stages:
         if elapsed_s < 8.0:
-            color = "#8C1515"       # Official the remote backend Cardinal
+            color = "#8B1A1A"       # Official the remote backend Crimson
         elif elapsed_s < 15.0:
-            color = "#C41E3A"       # Vibrant Cardinal Hot
+            color = "#C41E3A"       # Vibrant Crimson Hot
         else:
             color = "#FFB347"       # Warm Amber (long-thinking state)
 
@@ -382,10 +382,10 @@ def _with_user_interjections(prompt, messages):
 _REMOTE_SPINNER = {
     "interval": 80,
     "frames": [
-        "[#8C1515]◐[/#8C1515] [bold #8C1515]S[/bold #8C1515]",
-        "[#8C1515]◓[/#8C1515] [bold #8C1515]S[/bold #8C1515]",
-        "[#8C1515]◑[/#8C1515] [bold #8C1515]S[/bold #8C1515]",
-        "[#8C1515]◒[/#8C1515] [bold #8C1515]S[/bold #8C1515]",
+        "[#8B1A1A]◐[/#8B1A1A] [bold #8B1A1A]S[/bold #8B1A1A]",
+        "[#8B1A1A]◓[/#8B1A1A] [bold #8B1A1A]S[/bold #8B1A1A]",
+        "[#8B1A1A]◑[/#8B1A1A] [bold #8B1A1A]S[/bold #8B1A1A]",
+        "[#8B1A1A]◒[/#8B1A1A] [bold #8B1A1A]S[/bold #8B1A1A]",
     ],
 }
 
@@ -995,7 +995,7 @@ Rules:
   draw it as SVG/HTML with write_file instead, since the image generator does not follow
   exact numbers.
 - If a command fails or tests fail, diagnose the traceback and fix the code immediately.
-- Never attempt to drive a remote backend SSO/Duo login inside browser_* tools — if a page unexpectedly redirects to login, stop and tell the user; that flow is handled separately by --login.
+- Never attempt to drive a remote backend SSO/2FA login inside browser_* tools — if a page unexpectedly redirects to login, stop and tell the user; that flow is handled separately by --login.
 - Finish in as few replies as possible. When your next reply's actions complete the task
   (for example the final edit plus the command that proves it works), put the summary and
   recap in THAT reply, after the tool blocks. If every one of those actions succeeds the task
@@ -1098,7 +1098,7 @@ _AUTH_LOCK_DEPTH = [0]
 @contextlib.contextmanager
 def _auth_lock(wait_sec=150):
     """Only one Period process at a time may refresh or renew the login.
-    The Playground rotates the refresh token on every refresh, so two processes
+    The remote backend rotates the refresh token on every refresh, so two processes
     refreshing together log each other out. Re-entrant within one process. If
     the lock stays busy past wait_sec, carry on unlocked rather than hang."""
     with _AUTH_THREAD_LOCK:
@@ -2632,7 +2632,7 @@ def render_project_tree(max_depth=2):
             _debug(f"render_project_tree failed at {path}: {e}")
 
     add_children(cwd, tree, 1)
-    console.print(Panel(tree, title="[bold #8C1515]Project Structure[/bold #8C1515]", border_style="#8C1515"))
+    console.print(Panel(tree, title="[bold #8B1A1A]Project Structure[/bold #8B1A1A]", border_style="#8B1A1A"))
 
 REPO_CONTEXT_BUDGET = 4000
 _REPO_DOC_CANDIDATES = ("AGENTS.md", "CLAUDE.md", "PERIOD.md", "CONTRIBUTING.md")
@@ -2739,22 +2739,22 @@ def _probe_refresh_token(refresh_tok):
     return False, None, None, "no remote sign-in in Period"
 
 
-# Straight into the remote backend Login. The Playground's own /login page only shows a
+# Straight into the remote backend Login. The remote backend's own /login page only shows a
 # "the remote backend Login" button (openidAutoRedirect is off), so a background renewal
 # that opened "/" sat on that button until it timed out and never renewed.
 OPENID_START_URL = f"{BASE_URL}/oauth/openid"
 _HEADLESS_UA = [None]
-# the remote backend's password and Duo can both pass and the Playground still refuse the
+# the remote backend's password and 2FA can both pass and the remote backend still refuse the
 # hand-off: its callback redirects to /oauth/error (seen 2026-10-22, every try,
 # even with a clean session). Waiting or opening a window can't fix that, so
 # the login stops at once and says so instead of "timed out".
 OAUTH_ERROR_PATH = "/oauth/error"
-PLAYGROUND_REFUSED_EXIT = 3
-PLAYGROUND_REFUSED_MSG = (
-    "the remote backend accepted your sign-in, but the AI Playground turned it away. "
-    "That's a problem on the Playground's side, not your password. "
-    "Try again later, or check that you can sign in at aiplayground.remote.edu.")
-_LOGIN_PROBLEM = [None]  # "playground" when the last login was refused by the Playground
+REMOTE_REFUSED_EXIT = 3
+REMOTE_REFUSED_MSG = (
+    "the remote backend accepted your sign-in, but the AI remote backend turned it away. "
+    "That's a problem on the remote backend's side, not your password. "
+    "Try again later, or check that you can sign in at airemote.remote.edu.")
+_LOGIN_PROBLEM = [None]  # "remote" when the last login was refused by the remote backend
 
 
 def _page_needs_person(page):
@@ -2763,12 +2763,12 @@ def _page_needs_person(page):
 
 def _launch_login_context(p, headed):
     """headed=True is a real Chrome window. Only a real window fills in the
-    saved SUNet password (measured 2026-10-15: headless never autofilled it)."""
+    saved account password (measured 2026-10-15: headless never autofilled it)."""
     args = ["--disable-blink-features=AutomationControlled"]
     if headed:
         return p.chromium.launch_persistent_context(
             user_data_dir=str(BROWSER_PROFILE_DIR), headless=False, args=args)
-    # Headless Chromium says "HeadlessChrome"; the remote backend and Duo remember the
+    # Headless Chromium says "HeadlessChrome"; the remote backend and 2FA remember the
     # browser you signed in with, so present the same browser as the window.
     if _HEADLESS_UA[0]:
         return p.chromium.launch_persistent_context(
@@ -3150,10 +3150,10 @@ def forget_access_token():
     _access_cache.update(token=None, exp=0.0, refresh=None)
 
 
-def _raise_if_playground_refused():
+def _raise_if_remote_refused():
     """A window would hit the same refusal, so stop with the real reason."""
-    if _LOGIN_PROBLEM[0] == "playground":
-        raise ValueError(PLAYGROUND_REFUSED_MSG)
+    if _LOGIN_PROBLEM[0] == "remote":
+        raise ValueError(REMOTE_REFUSED_MSG)
 
 
 def refresh_token(config, allow_browser_sync=True):
@@ -5072,7 +5072,7 @@ def tool_model3d_ground(args, auto_approve=False):
 
 # --- Task plan ----------------------------------------------------------------
 #
-# Conversation history lives server-side in LibreChat and the system instruction
+# Conversation history lives server-side in the chat server and the system instruction
 # is only sent on the first turn, so on a long task the original objective drifts
 # out of reach and the agent starts polishing whatever it touched last. The plan
 # is held here, locally, and re-stated in every follow-up prompt. It costs no
@@ -6000,7 +6000,7 @@ _ROUTE_TABLE = [
       "update my deadlines"], "/deadlines"),
     (["use the api gateway", "connect the api gateway", "use my api key", "use the official api",
       "connect my remote api key", "use the remote api"], "/gateway"),
-    (["use the playground", "switch back to the playground", "stop using the api gateway"], "/gateway off"),
+    (["use the remote", "switch back to the remote", "stop using the api gateway"], "/gateway off"),
     (["open the menu", "show the menu", "menu"], "/palette"),
     (["reconnect tools", "reconnect roblox", "reconnect studio", "reload tools"], "/mcp reload"),
     (["connect my phone", "set up my phone", "use my phone", "phone access", "connect phone",
@@ -7793,7 +7793,7 @@ def phone_setup():
         "  1. Open [bold]Tailscale[/bold] on your phone and make sure it's connected (same account as this PC).\n"
         f"  2. On the phone, open [bold {AMBER}]{safe_markup(urls[0])}[/bold {AMBER}]"
         + (f" [dim](or {safe_markup(urls[1])})[/dim]" if len(urls) > 1 else "") + "\n"
-        f"  3. Enter this code:  [bold white on {CARDINAL}] {code[:3]} {code[3:]} [/bold white on {CARDINAL}]  [dim](works for 10 minutes)[/dim]\n"
+        f"  3. Enter this code:  [bold white on {CRIMSON}] {code[:3]} {code[3:]} [/bold white on {CRIMSON}]  [dim](works for 10 minutes)[/dim]\n"
         "  4. Tap Share → [bold]Add to Home Screen[/bold] so it opens like an app.\n\n"
         "  [dim]Only your own devices on Tailscale can reach it, and only after pairing. The PC stays\n"
         "  awake while your phone is connected. Say \"stop phone access\" to turn it off.[/dim]\n")
@@ -9974,7 +9974,7 @@ def tool_contacts_find(args):
         return f"Error: {_com_err(e)}"
     console.print(f"  [dim]⎿  {len(out)} match{'es' if len(out) != 1 else ''}[/dim]")
     return "\n".join(out) if out else (f"Nobody called '{name}' in the remote backend directory or contacts. "
-                                       "Try their SUNet ID or full name, or search mail from them.")
+                                       "Try their username or full name, or search mail from them.")
 
 
 # --- Google: Drive, Docs, Sheets and Calendar ---
@@ -11233,9 +11233,9 @@ def tool_app_do(args):
 # --- the remote backend AI API Gateway (the official route) ---
 # From UIT's docs (2026-09-27): an OpenAI-compatible endpoint at
 # https://aiapi-prod.remote.edu/v1 (LiteLLM), a personal API key billed to a
-# PTA, and model aliases that must match exactly. Unlike the Playground it
+# PTA, and model aliases that must match exactly. Unlike the remote backend it
 # keeps no conversation history, so Period keeps it here. Off unless the
-# user connects a key; the Playground stays the default.
+# user connects a key; the remote backend stays the default.
 GATEWAY_URL = ""
 _GATEWAY_SECRET = "Period:aiapi:key"
 GATEWAY_CONV_DIR = Path.home() / ".period_gateway"
@@ -11325,9 +11325,9 @@ def run_palette():
     @keys.add("escape", eager=True)
     def _cancel(event):
         event.app.exit(result=None)
-    style = _S.from_dict({"selected-option": f"{AMBER} bold", "frame.border": CARDINAL})
+    style = _S.from_dict({"selected-option": f"{AMBER} bold", "frame.border": CRIMSON})
     return choice(
-        _H(f"<b><style fg='{CARDINAL}'>◓ S</style>  What do you want to do?</b>  "
+        _H(f"<b><style fg='{CRIMSON}'>◓ S</style>  What do you want to do?</b>  "
            "<style fg='#888888'>↑ ↓ then Enter · Esc to cancel</style>"),
         options=[(action, label) for label, action in PALETTE],  # (value, what's shown)
         style=style, symbol="▸", show_frame=True, key_bindings=keys)
@@ -12291,7 +12291,7 @@ def build_watch_prompt(goal, interval_sec):
         f"{WATCH_CONTINUE_TOKEN}.\n"
         f"Passive re-checks wait ~{interval_sec}s (Ctrl+C stops watch mode). "
         "computer_click/type/key/scroll/drag still ask [Y/n] unless /auto is on. "
-        "Never drive the remote backend SSO/Duo login with these tools."
+        "Never drive the remote backend SSO/2FA login with these tools."
     )
 
 
@@ -12315,7 +12315,7 @@ def build_watch_tab_prompt(goal, interval_sec, url=None):
         f"{WATCH_CONTINUE_TOKEN} plus one short sentence of what you are waiting for.\n"
         "5. When the goal is complete, write the normal Summary / recap and stop.\n"
         f"Passive re-checks wait ~{interval_sec}s (Ctrl+C stops). "
-        "Never drive the remote backend SSO/Duo login."
+        "Never drive the remote backend SSO/2FA login."
     )
 
 
@@ -13153,7 +13153,7 @@ def _encode_screenshot(img, max_edge=SCREENSHOT_MAX_EDGE, max_bytes=SCREENSHOT_M
     """JPEG-encode a screenshot so the remote backend's image API can process it.
 
     Full-size PNG of a Roblox Studio viewport is often several MB and the
-    playground returns HTTP 500 `Error processing file`. JPEG + a 1600px cap
+    remote returns HTTP 500 `Error processing file`. JPEG + a 1600px cap
     stays well under that. Returns (jpeg_bytes, width, height).
     """
     import io as _io
@@ -13728,7 +13728,7 @@ def _budget_tool_result(name, text, args=None):
 
     run_command returned its entire stdout+stderr verbatim, so one `pytest -v`
     could push everything else out of the conversation -- and because history
-    lives server-side in LibreChat, the client can't prune it afterwards. Keep
+    lives server-side in the chat server, the client can't prune it afterwards. Keep
     the head AND the tail: the tail is where the traceback and the exit status
     are, and dropping it is what makes the model "fix" the wrong thing.
     """
@@ -13878,7 +13878,7 @@ def _pacing_hint(tools_ran):
 
 # --- Conversation compaction --------------------------------------------------
 #
-# History lives server-side in LibreChat, keyed by conversationId, so the client
+# History lives server-side in the chat server, keyed by conversationId, so the client
 # cannot prune it. What it can do is end the thread and open a new one carrying
 # only a summary -- which is the same thing, from the model's point of view.
 
@@ -15102,7 +15102,7 @@ def _sigint_handler(signum, frame):
 
 # --- Start-up banner ---
 # Block letters generated once with pyfiglet's "ansi_shadow" font and pasted in,
-# so there is no extra dependency. PERIOD fades down through Cardinal; CODE is
+# so there is no extra dependency. PERIOD fades down through Crimson; CODE is
 # amber. Narrower terminals get a smaller version instead of wrapped art.
 _LOGO_PERIOD = [
     '██████╗  ███████╗ ██████╗  ██╗  ██████╗  ██████╗ ',
@@ -15112,22 +15112,22 @@ _LOGO_PERIOD = [
     '██║      ███████╗ ██║  ██║ ██║ ╚██████╔╝ ██████╔╝',
     '╚═╝      ╚══════╝ ╚═╝  ╚═╝ ╚═╝  ╚═════╝  ╚═════╝ ',
 ]
-_LOGO_RED = ["#FF5A5F", "#E8323C", "#C41E3A", "#A8182A", "#8C1515", "#5E0E0E"]
+_LOGO_RED = ["#FF5A5F", "#E8323C", "#C41E3A", "#A8182A", "#8B1A1A", "#5E0E0E"]
 _LOGO_AMBER = ["#FFD27A", "#FFC45E", "#FFB347", "#F29E32", "#E08A22", "#B86B12"]
-CARDINAL = "#C41E3A"
+CRIMSON = "#C41E3A"
 AMBER = "#FFB347"
 
 
 def _logo_lines(width):
     if width >= len(_LOGO_PERIOD[0]) + 2:
         return [Text(s, style=f"bold {r}") for s, r in zip(_LOGO_PERIOD, _LOGO_RED)]
-    return [Text.assemble(("◓ ", f"bold {CARDINAL}"), ("P E R I O D", f"bold {AMBER}"))]
+    return [Text.assemble(("◓ ", f"bold {CRIMSON}"), ("P E R I O D", f"bold {AMBER}"))]
 
 
 # --- Themes ---
 THEMES = {
-    "cardinal": dict(primary="#C41E3A", accent="#FFB347", rule="#5E0E0E",
-                     logo=["#FF5A5F", "#E8323C", "#C41E3A", "#A8182A", "#8C1515", "#5E0E0E"],
+    "crimson": dict(primary="#C41E3A", accent="#FFB347", rule="#5E0E0E",
+                     logo=["#FF5A5F", "#E8323C", "#C41E3A", "#A8182A", "#8B1A1A", "#5E0E0E"],
                      logo2=["#FFD27A", "#FFC45E", "#FFB347", "#F29E32", "#E08A22", "#B86B12"],
                      bar="bg:#1c0606 #d9a3a3"),
     "midnight": dict(primary="#4C8DFF", accent="#7FE7FF", rule="#16264a",
@@ -15158,12 +15158,12 @@ def _ui_settings():
 
 
 def apply_theme(name=None, save=False):
-    global CARDINAL, AMBER, _LOGO_RED, _LOGO_AMBER, THEME_RULE, THEME_BAR
-    name = (name or _ui_settings().get("theme") or "cardinal").lower()
+    global CRIMSON, AMBER, _LOGO_RED, _LOGO_AMBER, THEME_RULE, THEME_BAR
+    name = (name or _ui_settings().get("theme") or "crimson").lower()
     if name not in THEMES:
         return None
     t = THEMES[name]
-    CARDINAL, AMBER, THEME_RULE, THEME_BAR = t["primary"], t["accent"], t["rule"], t["bar"]
+    CRIMSON, AMBER, THEME_RULE, THEME_BAR = t["primary"], t["accent"], t["rule"], t["bar"]
     _LOGO_RED, _LOGO_AMBER = t["logo"], t["logo2"]
     if save:
         settings = _ui_settings()
@@ -15174,12 +15174,12 @@ def apply_theme(name=None, save=False):
 
 
 THEME_RULE = "#5E0E0E"
-THEME_BAR = THEMES["cardinal"]["bar"]
+THEME_BAR = THEMES["crimson"]["bar"]
 
 
 def print_capabilities():
     """What it can do, in plain words — there's nothing to memorise."""
-    console.print(f"\n[bold {CARDINAL}]◓ S  What you can ask me[/bold {CARDINAL}] [dim]— just type it, in your own words[/dim]\n")
+    console.print(f"\n[bold {CRIMSON}]◓ S  What you can ask me[/bold {CRIMSON}] [dim]— just type it, in your own words[/dim]\n")
     rows = [
         ("Work on your stuff", "\"fix the bug in my game script\", \"make a website for my club\""),
         ("Look things up", "\"google the best budget laptop\", \"research dorm room layouts\""),
@@ -15204,7 +15204,7 @@ def print_capabilities():
         ("Rules", "\"show my rules\" — what I'm allowed to do without asking"),
         ("Menu", "press Ctrl+K for everything in a list"),
         ("Later / repeating", "\"every morning at 8, summarize my email\""),
-        ("Look", "\"change the theme to midnight\" (cardinal, midnight, matrix, gold, mono)"),
+        ("Look", "\"change the theme to midnight\" (crimson, midnight, matrix, gold, mono)"),
         ("Later / repeating", "\"every morning at 8, summarize my email\""),
         ("What I did", "\"what did you do today?\" — every command, file and email"),
         ("Keep it private", "\"remote-only mode\" — nothing leaves the remote backend"),
@@ -15330,10 +15330,10 @@ def print_banner(user_name, model, thinking_mode, cwd, branch_badge, resumed=Non
     for line in _logo_lines(width):
         console.print(line, no_wrap=True, overflow="crop")
     rule = "━" * min(width - 2, 101)
-    CARD, AMB = CARDINAL, AMBER
+    CARD, AMB = CRIMSON, AMBER
     console.print(Text.assemble(
         (f"  ◓ S  ", f"bold {CARD}"), ("ONLINE", "bold green"),
-        (f"  ·  v{__version__}  ·  autonomous agent on the the old remote backend", "dim")))
+        (f"  ·  v{__version__}  ·  autonomous agent on the remote backend AI remote backend", "dim")))
     console.print(Text(rule, style=THEME_RULE))
 
     memories = len(load_memories())
@@ -15401,7 +15401,7 @@ def main():
         # auth lock meanwhile; a real window there fills the saved password.
         if browser_login_sync(headed=False, timeout_sec=45, window=True):
             sys.exit(0)
-        sys.exit(PLAYGROUND_REFUSED_EXIT if _LOGIN_PROBLEM[0] == "playground" else 1)
+        sys.exit(REMOTE_REFUSED_EXIT if _LOGIN_PROBLEM[0] == "remote" else 1)
     if len(sys.argv) >= 5 and sys.argv[1] == "--web-worker":
         _web_worker_main(sys.argv[2], sys.argv[3], sys.argv[4])
         return
@@ -15424,8 +15424,8 @@ def main():
     if args.sync:
         if silent_login_renew():
             console.print("[bold green]+ the remote backend login renewed with no window.[/bold green]")
-        elif _LOGIN_PROBLEM[0] == "playground":
-            console.print(f"[bold red]{PLAYGROUND_REFUSED_MSG}[/bold red]")
+        elif _LOGIN_PROBLEM[0] == "remote":
+            console.print(f"[bold red]{REMOTE_REFUSED_MSG}[/bold red]")
         else:
             console.print("[yellow]the remote backend wants you to sign in again. Opening a window...[/yellow]")
             browser_login_sync(headed=True)
@@ -15743,8 +15743,8 @@ def main():
                 if silent_login_renew():
                     config.update(load_config())
                     console.print("[bold green]+ the remote backend login renewed with no window.[/bold green]")
-                elif _LOGIN_PROBLEM[0] == "playground":
-                    console.print(f"[bold red]{PLAYGROUND_REFUSED_MSG}[/bold red]")
+                elif _LOGIN_PROBLEM[0] == "remote":
+                    console.print(f"[bold red]{REMOTE_REFUSED_MSG}[/bold red]")
                 else:
                     console.print("[yellow]the remote backend wants you to sign in again — say 'log in'.[/yellow]")
                 continue
@@ -15972,7 +15972,7 @@ def main():
                 continue
             if task == "/gateway off":
                 set_gateway(False)
-                console.print("[dim]Back on the AI Playground login.[/dim]")
+                console.print("[dim]Back on the AI remote backend login.[/dim]")
                 continue
             if task in ("/phone", "/phone on"):
                 phone_setup()
@@ -16042,7 +16042,7 @@ def main():
             if task == "/theme" or task.startswith("/theme "):
                 name = task.split(maxsplit=1)[1].strip() if " " in task else ""
                 if name and apply_theme(name, save=True):
-                    console.print(f"[bold {CARDINAL}]✓ Theme: {name}[/bold {CARDINAL}] [dim](the full look shows next time you open it)[/dim]")
+                    console.print(f"[bold {CRIMSON}]✓ Theme: {name}[/bold {CRIMSON}] [dim](the full look shows next time you open it)[/dim]")
                     try:
                         session.style = _PTStyle.from_dict({"bottom-toolbar": THEME_BAR + " noreverse"})
                     except Exception:
@@ -16351,7 +16351,7 @@ def main():
                         attached_files=[file_meta]
                     )
                     if reply:
-                        console.print(f"\n[bold #8C1515]Period[/bold #8C1515] [dim]({safe_markup(model)})[/dim]")
+                        console.print(f"\n[bold #8B1A1A]Period[/bold #8B1A1A] [dim]({safe_markup(model)})[/dim]")
                         try:
                             console.print(_render_inline(reply), highlight=False)
                         except Exception:

@@ -1,0 +1,43 @@
+# The Dot PC on a Mac: Dot's own Linux computer (Lima VM), the same thing WSL is on Windows.
+# Made by mac/setup-dotpc.sh:  limactl create --name dotpc mac/dotpc.yaml
+# Needs Lima 1.0 or newer (the `user:` block) and macOS 13+ (vmType vz).
+#
+# Isolation: it can't see the Mac's files. The only shared folder is ~/DotShare (as ~/share inside).
+vmType: vz
+rosetta:
+  enabled: false
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+  - location: "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+cpus: 4
+memory: "4GiB"
+disk: "40GiB"
+# Dot's scripts expect the user `dot` with its home at /home/dot (as in WSL).
+user:
+  name: dot
+  home: "/home/dot"
+mountType: virtiofs
+mounts:
+  - location: "~/DotShare"
+    mountPoint: "/home/dot/share"
+    writable: true
+containerd:
+  system: false
+  user: false
+# Only the live view (6080) and the VM Chrome's DevTools port (9222) reach the Mac, and only on 127.0.0.1.
+# The first rule that matches wins, so everything else is ignored.
+portForwards:
+  - guestIP: "127.0.0.1"
+    guestPort: 6080
+    hostIP: "127.0.0.1"
+  - guestIP: "127.0.0.1"
+    guestPort: 9222
+    hostIP: "127.0.0.1"
+  - guestIP: "127.0.0.1"
+    guestPortRange: [1, 65535]
+    ignore: true
+  - guestIP: "0.0.0.0"
+    guestPortRange: [1, 65535]
+    ignore: true

@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#171717">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Period">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>Period</title>
+<style>
+  :root {
+    --bg:#171717; --panel:#212121; --bubble:#2f2f2f; --line:#2c2c2c; --text:#ececec; --dim:#9b9b9b;
+    --red:#C41E3A; --amber:#FFB347; --green:#3ddc84; --radius:22px;
+    --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    --mono:ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:16px/1.5 var(--font); }
+  body { display:flex; flex-direction:column; height:100dvh; }
+  button { font:inherit; color:inherit; border:0; background:none; cursor:pointer; }
+
+  /* header */
+  header { display:flex; align-items:center; gap:10px; padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+    background:var(--bg); border-bottom:1px solid var(--line); }
+  .mark { width:30px; height:30px; border-radius:50%; background:var(--red); display:grid; place-items:center;
+    font:900 15px var(--font); color:#fff; flex:none; }
+  .who { flex:1; min-width:0; }
+  .who b { display:block; font-size:16px; font-weight:650; letter-spacing:.01em; }
+  .who small { display:flex; align-items:center; gap:6px; color:var(--dim); font-size:12.5px; white-space:nowrap; overflow:hidden; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#666; flex:none; }
+  .dot.on { background:var(--green); } .dot.busy { background:var(--amber); animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.3 } }
+  .icon { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; color:var(--dim); }
+  .icon:active { background:#2a2a2a; }
+
+  /* chat */
+  #chat { flex:1; overflow-y:auto; padding:18px 14px 12px; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
+  .empty { margin:18vh auto 0; text-align:center; color:var(--dim); max-width:300px; }
+  .empty .mark { width:56px; height:56px; font-size:26px; margin:0 auto 14px; }
+  .empty h2 { color:var(--text); font-size:21px; margin:0 0 6px; font-weight:650; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px; }
+  .chip { border:1px solid var(--line); border-radius:16px; padding:8px 12px; font-size:14px; color:var(--text); background:var(--panel); }
+
+  .row { display:flex; margin:10px 0; }
+  .row.me { justify-content:flex-end; }
+  .me .bubble { background:var(--bubble); border-radius:var(--radius); padding:10px 15px; max-width:82%;
+    white-space:pre-wrap; word-wrap:break-word; }
+  .me .pics { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:6px; }
+  .me .pics img { width:120px; height:120px; object-fit:cover; border-radius:14px; }
+  .ai { flex-direction:column; align-items:stretch; }
+  .ai .body { word-wrap:break-word; }
+  .ai .body p { margin:.35em 0 .7em; }
+  .ai .body h1,.ai .body h2,.ai .body h3 { font-size:1.05em; margin:1em 0 .4em; }
+  .ai .body ul,.ai .body ol { padding-left:1.3em; margin:.3em 0 .8em; }
+  .ai .body li { margin:.2em 0; }
+  .ai .body a { color:#8ab4ff; }
+  .ai .body code { font:.88em var(--mono); background:#2a2a2a; padding:.12em .35em; border-radius:6px; }
+  .ai .body pre { background:#0f0f0f; border:1px solid var(--line); border-radius:14px; padding:12px; overflow-x:auto; }
+  .ai .body pre code { background:none; padding:0; font-size:.83em; line-height:1.45; }
+  .ai .body img.gen { width:100%; border-radius:16px; margin:6px 0; display:block; }
+  .note { color:var(--dim); font:13px/1.45 var(--mono); white-space:pre-wrap; background:#1d1d1d; border:1px solid var(--line);
+    border-radius:14px; padding:10px 12px; margin:8px 0; }
+  .meta { color:var(--dim); font-size:12.5px; margin-top:2px; }
+  .meta.bad { color:var(--amber); }
+
+  /* working / steps */
+  .steps { margin:2px 0 8px; }
+  .steps summary { list-style:none; display:inline-flex; align-items:center; gap:8px; color:var(--dim); font-size:14px; cursor:pointer; }
+  .steps summary::-webkit-details-marker { display:none; }
+  .steps summary .chev { transition:transform .2s; font-size:11px; }
+  .steps[open] summary .chev { transform:rotate(90deg); }
+  .steps ol { list-style:none; margin:6px 0 0 4px; padding:0 0 0 12px; border-left:2px solid #2d2d2d; }
+  .steps li { font-size:13.5px; color:var(--dim); padding:3px 0; }
+  .steps li.fail { color:var(--amber); }
+  .shimmer { background:linear-gradient(90deg,#8a8a8a 0%,#e8e8e8 50%,#8a8a8a 100%); background-size:200% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent; animation:sh 1.6s linear infinite; }
+  @keyframes sh { to { background-position:-200% 0 } }
+  .think { color:var(--dim); font-size:13.5px; font-style:italic; white-space:pre-wrap; margin:4px 0 8px; max-height:5.5em; overflow:hidden; }
+
+  /* confirm sheet */
+  #confirm { display:none; margin:0 12px 8px; padding:14px; border-radius:18px; background:#2a2118; border:1px solid #4a3515; }
+  #confirm p { margin:0 0 10px; font-size:15px; }
+  #confirm div { display:flex; gap:10px; }
+  #confirm button { flex:1; padding:12px; border-radius:14px; font-weight:650; }
+  #yes { background:var(--red); } #no { background:#3a3a3a; }
+
+  /* composer */
+  #composer { padding:6px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--bg); }
+  .box { background:var(--panel); border:1px solid var(--line); border-radius:26px; padding:6px; }
+  #thumbs { display:none; gap:8px; padding:6px 6px 4px; overflow-x:auto; }
+  .thumb { position:relative; flex:none; }
+  .thumb img { width:64px; height:64px; object-fit:cover; border-radius:14px; display:block; }
+  .thumb button { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%;
+    background:#000; border:1px solid #555; font-size:13px; line-height:1; display:grid; place-items:center; }
+  .thumb .up { position:absolute; inset:0; border-radius:14px; background:#0008; display:grid; place-items:center; font-size:12px; }
+  .inrow { display:flex; align-items:flex-end; gap:4px; }
+  #plus { width:40px; height:40px; border-radius:50%; font-size:26px; line-height:1; color:var(--dim); flex:none; }
+  #plus:active { background:#2c2c2c; }
+  textarea { flex:1; resize:none; border:0; outline:none; background:none; color:var(--text); font:16px/1.4 var(--font);
+    padding:9px 4px; max-height:32vh; min-height:40px; }
+  textarea::placeholder { color:#7a7a7a; }
+  #send { width:40px; height:40px; border-radius:50%; background:#fff; color:#000; flex:none; display:grid; place-items:center; }
+  #send:disabled { background:#3a3a3a; color:#777; }
+  #send.stop { background:#fff; }
+  #send svg { width:18px; height:18px; }
+
+  /* offline + pairing + terminal */
+  #banner { display:none; margin:8px 12px 0; padding:10px 12px; border-radius:14px; background:#2a2118; color:var(--amber); font-size:13.5px; }
+  #pair { position:fixed; inset:0; display:none; flex-direction:column; justify-content:center; align-items:center; gap:14px;
+    background:var(--bg); padding:24px; text-align:center; z-index:5; }
+  #pair .mark { width:64px; height:64px; font-size:30px; }
+  #pair h1 { margin:6px 0 0; font-size:24px; font-weight:700; }
+  #pair p { color:var(--dim); margin:0; max-width:300px; }
+  #code { font:600 30px var(--mono); letter-spacing:.35em; text-align:center; width:240px; padding:12px; border-radius:16px;
+    border:1px solid var(--line); background:var(--panel); color:#fff; outline:none; }
+  #pairbtn { padding:14px 40px; border-radius:16px; background:#fff; color:#000; font-weight:650; }
+  #termwrap { position:fixed; inset:0; display:none; flex-direction:column; background:#0b0b0b; z-index:4; }
+  #termwrap header { background:#0b0b0b; }
+  #term { flex:1; overflow-y:auto; padding:10px; font:12px/1.3 var(--mono); white-space:pre-wrap; word-break:break-word; }
+  #term .l { min-height:1.3em; }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark">S</div>
+  <div class="who"><b>Period</b><small><span class="dot" id="dot"></span><span id="status">connecting…</span></small></div>
+  <button class="icon" id="termbtn" aria-label="Show the terminal" title="Terminal view">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-5-6-5M12 19h8"/></svg>
+  </button>
+</header>
+<div id="banner"></div>
+<main id="chat">
+  <div class="empty" id="empty">
+    <div class="mark">S</div>
+    <h2>What can I do for you?</h2>
+    <div>Same Period as your PC — your files, Roblox, email and the web.</div>
+    <div class="chips">
+      <button class="chip">Pick up where we left off</button>
+      <button class="chip">Any new emails?</button>
+      <button class="chip">Playtest my game</button>
+      <button class="chip">What can you do?</button>
+    </div>
+  </div>
+</main>
+<div id="confirm"><p id="confirmText"></p><div><button id="no">No</button><button id="yes">Yes</button></div></div>
+<div id="composer">
+  <div class="box">
+    <div id="thumbs"></div>
+    <div class="inrow">
+      <button id="plus" aria-label="Add photos">+</button>
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <textarea id="msg" rows="1" placeholder="Message Period"></textarea>
+      <button id="send" aria-label="Send" disabled>
+        <svg id="sendIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l7 7-1.4 1.4L13 7.8V20h-2V7.8l-4.6 4.6L5 11z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+<div id="pair">
+  <div class="mark">S</div>
+  <h1>Period</h1>
+  <p>Enter the 6-digit code shown on your PC. You only do this once.</p>
+  <input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••">
+  <button id="pairbtn">Connect</button>
+  <p id="pairmsg"></p>
+</div>
+<div id="termwrap">
+  <header><div class="who"><b>Terminal</b><small>exactly what the PC shows</small></div>
+    <button class="icon" id="termclose" aria-label="Close">✕</button></header>
+  <div id="term"></div>
+</div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const chat = $("chat");
+let ws, token = localStorage.getItem("sc_token") || "", retry = 0, busy = false;
+const touch = matchMedia("(pointer:coarse)").matches;
+
+/* ---------- tiny safe markdown ---------- */
+function esc(s) { return s.replace(/[&<>"]/g, (m) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+}
+function md(src) {
+  const out = []; const lines = src.replace(/\r/g, "").split("\n"); let i = 0, list = null;
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^```/.test(l)) { closeList(); const code = []; i++; while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]); i++;
+      out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`); continue; }
+    let m;
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))) { closeList(); out.push(`<h3>${inline(m[2])}</h3>`); i++; continue; }
+    if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; } out.push(`<li>${inline(m[1])}</li>`); i++; continue; }
+    if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; } out.push(`<li>${inline(m[1])}</li>`); i++; continue; }
+    if (/^\s*\|.*\|\s*$/.test(l)) { closeList(); const t = []; while (i < lines.length && /^\s*\|/.test(lines[i])) t.push(lines[i++]);
+      out.push(`<pre><code>${esc(t.join("\n"))}</code></pre>`); continue; }
+    if (!l.trim()) { closeList(); i++; continue; }
+    closeList(); const para = [l]; i++;
+    while (i < lines.length && lines[i].trim() && !/^(```|#{1,3}\s|\s*[-*•]\s|\s*\d+[.)]\s|\s*\|)/.test(lines[i])) para.push(lines[i++]);
+    out.push(`<p>${para.map(inline).join("<br>")}</p>`);
+  }
+  closeList(); return out.join("");
+}
+
+/* ---------- chat rendering ---------- */
+let turn = null;   // the assistant turn currently being written
+function hideEmpty() { const e = $("empty"); if (e) e.remove(); }
+function atBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120; }
+function scrollDown(force) { if (force || atBottom()) requestAnimationFrame(() => chat.scrollTop = chat.scrollHeight); }
+function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+
+function addUser(text, pics) {
+  hideEmpty(); const stick = true;
+  const row = el("div", "row me"); const wrap = el("div");
+  if (pics && pics.length) { const p = el("div", "pics"); for (const src of pics) { const im = el("img"); im.src = src; p.appendChild(im); } wrap.appendChild(p); }
+  if (text) { const b = el("div", "bubble"); b.textContent = text; const w2 = el("div"); w2.style.display = "flex"; w2.style.justifyContent = "flex-end"; w2.appendChild(b); wrap.appendChild(w2); }
+  row.appendChild(wrap); chat.appendChild(row); turn = null; scrollDown(stick);
+}
+function ensureTurn() {
+  if (turn) return turn;
+  hideEmpty();
+  const row = el("div", "row ai");
+  const steps = el("details", "steps"); steps.innerHTML = '<summary><span class="chev">▶</span><span class="label shimmer">Working…</span></summary><ol></ol>';
+  steps.style.display = "none";
+  const think = el("div", "think"); think.style.display = "none";
+  const body = el("div", "body"); const meta = el("div", "meta");
+  row.append(steps, think, body, meta); chat.appendChild(row);
+  turn = { row, steps, think, body, meta, text: "", nsteps: 0, thinking: "" };
+  return turn;
+}
+function setWorking(on) {
+  const t = ensureTurn();
+  t.steps.style.display = "";
+  const label = t.steps.querySelector(".label");
+  if (on) { label.classList.add("shimmer"); label.textContent = t.nsteps ? t.lastStep : "Thinking…"; }
+  else { label.classList.remove("shimmer"); label.textContent = t.nsteps ? `Worked through ${t.nsteps} step${t.nsteps === 1 ? "" : "s"}` : "Thought it through";
+    if (!t.nsteps) t.steps.style.display = "none"; }
+}
+function addStep(text) {
+  const t = ensureTurn(); t.nsteps++; t.lastStep = text;
+  const li = el("li"); li.textContent = text; t.steps.querySelector("ol").appendChild(li);
+  if (busy) setWorking(true); scrollDown();
+}
+function endStep(ok) { if (!turn) return; const li = turn.steps.querySelector("ol li:last-child"); if (li && ok === false) li.classList.add("fail"); }
+// Every turn that got new text is redrawn on the next frame. (One shared
+// "pending" flag used to drop the second of two replies arriving together.)
+const dirtyTurns = new Set(); let renderQueued = false;
+function addText(s) {
+  const t = ensureTurn(); t.text += s; dirtyTurns.add(t);
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => {
+    renderQueued = false; const stick = atBottom();
+    for (const d of dirtyTurns) d.body.innerHTML = md(d.text);
+    dirtyTurns.clear();
+    if (stick) chat.scrollTop = chat.scrollHeight;
+  });
+}
+function addThinking(s) { const t = ensureTurn(); t.thinking += s; t.think.style.display = ""; t.think.textContent = t.thinking.slice(-400); scrollDown(); }
+function addImage(src) { const t = ensureTurn(); const im = el("img", "gen"); im.src = src; im.onload = () => scrollDown(); t.body.parentNode.insertBefore(im, t.meta); }
+function addNote(text) { hideEmpty(); const n = el("div", "note"); n.textContent = text; chat.appendChild(n); turn = null; scrollDown(true); }
+function finish(ev) {
+  const t = ensureTurn(); setWorking(false); t.think.style.display = "none";
+  t.meta.textContent = ev.text || ""; if (!ev.ok) t.meta.classList.add("bad");
+  turn = null; scrollDown();
+}
+function applyEvent(ev) {
+  switch (ev.type) {
+    case "user": addUser(ev.text, ev.pics); break;
+    case "working": ensureTurn(); setWorking(true); break;
+    case "step": addStep(ev.text); break;
+    case "step_end": endStep(ev.ok); break;
+    case "text": addText(ev.text); break;
+    case "thinking": addThinking(ev.text); break;
+    case "image": addImage(ev.src); break;
+    case "note": addNote(ev.text); break;
+    case "done": finish(ev); break;
+  }
+}
+
+/* ---------- raw terminal (optional view) ---------- */
+const lines = [[]]; let row = 0, col = 0, style = {};
+const PAL = ["#000","#c33","#3c3","#cc3","#36c","#c3c","#3cc","#ccc","#666","#f55","#5f5","#ff5","#59f","#f5f","#5ff","#fff"];
+function sgr(p) { if (!p.length) p = [0]; for (let i = 0; i < p.length; i++) { const n = p[i];
+  if (n === 0) style = {}; else if (n === 1) style.b = 1; else if (n === 2) style.d = 1; else if (n === 22) { style.b = 0; style.d = 0; }
+  else if (n >= 30 && n <= 37) style.fg = PAL[n-30]; else if (n >= 90 && n <= 97) style.fg = PAL[n-82]; else if (n === 39) delete style.fg;
+  else if (n >= 40 && n <= 47) style.bg = PAL[n-40]; else if (n === 49) delete style.bg;
+  else if ((n === 38 || n === 48) && p[i+1] === 2) { const c = `rgb(${p[i+2]},${p[i+3]},${p[i+4]})`; if (n === 38) style.fg = c; else style.bg = c; i += 4; }
+  else if ((n === 38 || n === 48) && p[i+1] === 5) i += 2; } }
+function feed(t) {
+  for (let i = 0; i < t.length; i++) { const c = t[i];
+    if (c === "\x1b" && t[i+1] === "[") { let j = i + 2; while (j < t.length && !/[A-Za-z]/.test(t[j])) j++;
+      const a = t.slice(i+2, j).replace(/^\?/, "").split(";").filter(x => x !== "").map(Number), k = t[j];
+      if (k === "m") sgr(a); else if (k === "A") row = Math.max(0, row - (a[0] || 1)); else if (k === "G") col = Math.max(0, (a[0] || 1) - 1);
+      else if (k === "K") { while (lines.length <= row) lines.push([]); lines[row] = a[0] === 2 ? [] : lines[row].slice(0, col); }
+      i = j; continue; }
+    if (c === "\x1b" && t[i+1] === "]") { const j = t.indexOf("\x07", i); i = j < 0 ? t.length : j; continue; }
+    if (c === "\r") { col = 0; continue; }
+    if (c === "\n") { row++; col = 0; while (lines.length <= row) lines.push([]); continue; }
+    if (c < " " && c !== "\t") continue;
+    while (lines.length <= row) lines.push([]); const L = lines[row]; while (L.length < col) L.push([" ", {}]); L[col++] = [c, {...style}]; }
+  if ($("termwrap").style.display === "flex") drawTerm();
+}
+function drawTerm() {
+  const term = $("term"); term.innerHTML = lines.slice(-1500).map(L => {
+    let h = "", cur = null, buf = ""; const flush = () => { if (!buf) return; const s = cur || {}, css = [];
+      if (s.fg) css.push("color:" + s.fg); if (s.bg) css.push("background:" + s.bg); if (s.b) css.push("font-weight:700"); if (s.d) css.push("opacity:.6");
+      h += css.length ? `<span style="${css.join(";")}">${esc(buf)}</span>` : esc(buf); buf = ""; };
+    for (const [ch, s] of L) { if (JSON.stringify(s) !== JSON.stringify(cur)) { flush(); cur = s; } buf += ch; } flush();
+    return `<div class="l">${h || "&nbsp;"}</div>`; }).join("");
+  term.scrollTop = term.scrollHeight;
+}
+$("termbtn").onclick = () => { $("termwrap").style.display = "flex"; drawTerm(); };
+$("termclose").onclick = () => { $("termwrap").style.display = "none"; };
+
+/* ---------- connection ---------- */
+function setStatus(text, state) { $("status").textContent = text; $("dot").className = "dot " + (state || ""); }
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => { retry = 0; $("banner").style.display = "none"; if (token) ws.send(JSON.stringify({type: "auth", token})); else showPair(); };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === "events") { if (m.replay) { chat.querySelectorAll(".row,.note").forEach(n => n.remove()); turn = null; } m.events.forEach(applyEvent); if (m.replay) scrollDown(true); }
+    else if (m.type === "out") feed(m.data);
+    else if (m.type === "history") { lines.length = 0; lines.push([]); row = col = 0; style = {}; feed(m.data); }
+    else if (m.type === "paired") { token = m.token; localStorage.setItem("sc_token", token); $("pair").style.display = "none"; }
+    else if (m.type === "need_pair") { localStorage.removeItem("sc_token"); token = ""; showPair(m.message); }
+    else if (m.type === "state") {
+      busy = !!m.busy; setStatus(m.status || (busy ? "working…" : m.model || "ready"), busy ? "busy" : "on");
+      $("confirm").style.display = m.confirm ? "block" : "none"; $("confirmText").textContent = (m.confirm || "").replace(/\s*\[[yYnN/]+\]:?\s*$/, "");
+      if (m.confirm && navigator.vibrate) navigator.vibrate([50, 40, 50]);
+      updateSend();
+    } else if (m.type === "done_ping" && document.hidden && "Notification" in window && Notification.permission === "granted") {
+      new Notification("Period", { body: m.text || "Done", icon: "/icon.png" });
+    }
+  };
+  ws.onclose = () => {
+    setStatus("PC offline — reconnecting", "");
+    $("banner").textContent = "Can't reach your PC. Check it's on, Period is open, and Tailscale is on here.";
+    $("banner").style.display = "block"; setTimeout(connect, Math.min(15000, 1000 * 2 ** retry++));
+  };
+}
+function showPair(msg) { $("pair").style.display = "flex"; $("pairmsg").textContent = msg || ""; setTimeout(() => $("code").focus(), 50); }
+$("pairbtn").onclick = () => ws && ws.send(JSON.stringify({type: "pair", code: $("code").value.trim()}));
+$("code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("pairbtn").click(); });
+
+/* ---------- composer ---------- */
+const pending = [];   // {id, b64, url, ready}
+const msg = $("msg");
+function updateSend() {
+  const btn = $("send"), has = msg.value.trim() || pending.length;
+  if (busy && !has) { btn.disabled = false; btn.classList.add("stop"); $("sendIcon").innerHTML = '<rect x="7" y="7" width="10" height="10" rx="2"/>'; btn.setAttribute("aria-label", "Stop"); }
+  else { btn.classList.remove("stop"); $("sendIcon").innerHTML = '<path d="M12 4l7 7-1.4 1.4L13 7.8V20h-2V7.8l-4.6 4.6L5 11z"/>';
+    btn.disabled = !has || pending.some(p => !p.ready); btn.setAttribute("aria-label", "Send"); }
+}
+function autosize() { msg.style.height = "auto"; msg.style.height = Math.min(msg.scrollHeight, innerHeight * 0.32) + "px"; updateSend(); }
+msg.addEventListener("input", autosize);
+msg.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !touch) { e.preventDefault(); send(); } });
+$("send").onclick = () => { if ($("send").classList.contains("stop")) { ws.send(JSON.stringify({type: "stop"})); return; } send(); };
+function send() {
+  const text = msg.value.trim(); if ((!text && !pending.length) || !ws || ws.readyState !== 1 || pending.some(p => !p.ready)) return;
+  ws.send(JSON.stringify({type: "say", text, photos: pending.map(p => ({name: p.name, b64: p.b64}))}));
+  msg.value = ""; pending.length = 0; drawThumbs(); autosize();
+  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+}
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => { msg.value = c.textContent; send(); });
+$("plus").onclick = () => $("file").click();
+$("file").onchange = () => { const files = [...$("file").files].slice(0, 10 - pending.length); $("file").value = ""; files.forEach(addPhoto); };
+async function addPhoto(f) {
+  const p = { id: Math.random().toString(36).slice(2), name: f.name, ready: false, url: URL.createObjectURL(f) };
+  pending.push(p); drawThumbs(); updateSend();
+  try {   // shrink on the phone so it uploads fast on mobile data
+    const img = await createImageBitmap(f); const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    p.b64 = c.toDataURL("image/jpeg", 0.85).split(",")[1]; p.ready = true;
+  } catch (e) { pending.splice(pending.indexOf(p), 1); alert("Couldn't read that picture."); }
+  drawThumbs(); updateSend();
+}
+function drawThumbs() {
+  const stick = atBottom();   // the composer grows; keep the latest message in view
+  const box = $("thumbs"); box.innerHTML = ""; box.style.display = pending.length ? "flex" : "none";
+  requestAnimationFrame(() => { if (stick) chat.scrollTop = chat.scrollHeight; });
+  for (const p of pending) {
+    const t = el("div", "thumb"); const im = el("img"); im.src = p.url; t.appendChild(im);
+    if (!p.ready) t.appendChild(el("div", "up", "…"));
+    const x = el("button", "", "✕"); x.setAttribute("aria-label", "Remove"); x.onclick = () => { pending.splice(pending.indexOf(p), 1); drawThumbs(); updateSend(); };
+    t.appendChild(x); box.appendChild(t);
+  }
+}
+document.addEventListener("paste", (e) => { for (const it of e.clipboardData?.items || []) if (it.type.startsWith("image/")) addPhoto(it.getAsFile()); });
+$("yes").onclick = () => ws.send(JSON.stringify({type: "answer", value: "y"}));
+$("no").onclick = () => ws.send(JSON.stringify({type: "answer", value: "n"}));
+connect();
+</script>
+</body>
+</html>

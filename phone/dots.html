@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8c1515">
+<title>Dots</title>
+<style>
+  :root {
+    --bg: #faf8f6; --card: #ffffff; --ink: #1f1a17; --muted: #6f6660; --line: #e6dfda;
+    --red: #8c1515; --amber: #b26b00; --green: #2e7d32; --blue: #1f5fa8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151211; --card: #1f1b19; --ink: #f2ece8; --muted: #a59a93; --line: #342d2a;
+            --red: #e0605a; --amber: #e3a640; --green: #6cc070; --blue: #79a8e8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--red); color: #fff;
+           padding: 12px 16px calc(12px); display: flex; align-items: center; gap: 10px; }
+  header h1 { font-size: 19px; margin: 0; flex: 1; }
+  header button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 8px;
+                  padding: 7px 11px; font: inherit; font-size: 14px; }
+  main { max-width: 760px; margin: 0 auto; padding: 14px 16px 90px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  textarea, input, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+                            border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+  button.main { background: var(--red); color: #fff; border: 0; border-radius: 8px; padding: 10px 14px;
+                font: inherit; font-weight: 600; }
+  button.plain { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+                 padding: 8px 12px; font: inherit; font-size: 14px; }
+  .dot { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+  .pip { width: 12px; height: 12px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--muted); }
+  .working .pip { background: var(--blue); animation: pulse 1.2s infinite; }
+  .waiting .pip { background: var(--amber); }
+  .done .pip { background: var(--green); }
+  .failed .pip, .stuck .pip { background: var(--red); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .name { font-weight: 600; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .ask { border-color: var(--amber); }
+  .ask .q { margin: 4px 0 10px; }
+  pre { white-space: pre-wrap; word-break: break-word; font: 12.5px/1.45 ui-monospace, Consolas, monospace;
+        background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+        max-height: 50vh; overflow: auto; margin: 8px 0 0; }
+  .chat p { margin: 6px 0; padding: 8px 11px; border-radius: 12px; max-width: 88%; }
+  .chat .dotmsg { background: var(--bg); border: 1px solid var(--line); }
+  .chat .you { background: var(--red); color: #fff; margin-left: auto; }
+  .screen img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; background: #000; }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; }
+  .hidden { display: none; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  a { color: var(--blue); }
+</style>
+</head>
+<body>
+<header>
+  <button id="back" class="hidden" aria-label="Back">‹ Back</button>
+  <h1 id="title">Dots</h1>
+  <button id="screenBtn">Its screen</button>
+  <button id="memBtn">Memory</button>
+</header>
+<main>
+  <section id="list">
+    <div class="card">
+      <h2>What should a Dot do?</h2>
+      <textarea id="goal" placeholder="e.g. Find me 3 cheap flights SFO to Chicago for Thanksgiving and text me the best one"></textarea>
+      <div class="row">
+        <select id="computer" aria-label="Computer">
+          <option value="auto">Pick the computer for me</option>
+          <option value="vm">Its own computer</option>
+          <option value="pc">My PC (my apps and accounts)</option>
+        </select>
+        <input id="schedule" placeholder="Repeat? e.g. daily 8am (optional)">
+      </div>
+      <div class="row"><button class="main" id="go">Start</button></div>
+    </div>
+    <div id="dots"></div>
+  </section>
+
+  <section id="detail" class="hidden">
+    <div id="askCard" class="card ask hidden">
+      <h2>It needs you</h2>
+      <div class="q" id="question"></div>
+      <div class="row" id="okRow">
+        <button class="main" data-answer="yes">Yes</button>
+        <button class="plain" data-answer="no">No</button>
+      </div>
+      <div class="row hidden" id="replyRow">
+        <input id="answerText" placeholder="Your answer">
+        <button class="main" id="sendAnswer" style="flex:0">Send</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sub" id="dstatus"></div>
+      <div id="dgoal" style="margin:6px 0 0"></div>
+      <div class="chat" id="chat"></div>
+      <div class="row">
+        <input id="say" placeholder="Tell it something">
+        <button class="main" id="sayBtn" style="flex:0">Send</button>
+      </div>
+      <div class="row">
+        <button class="plain" id="againBtn">Run again</button>
+        <button class="plain" id="stopBtn">Stop</button>
+        <button class="plain" id="delBtn">Delete</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>What it's doing</h2>
+      <pre id="log"></pre>
+    </div>
+  </section>
+
+  <section id="screen" class="hidden">
+    <div class="card screen">
+      <div class="sub" id="screenNote">Its own computer, live.</div>
+      <img id="shot" alt="The Dot PC's screen">
+      <div class="row">
+        <button class="plain" id="vmStart">Turn it on</button>
+        <button class="plain" id="vmStop">Turn it off</button>
+      </div>
+      <p class="sub">On this PC you can also take control: <a id="fullView" href="#" target="_blank" rel="noopener">open the full view</a>.</p>
+    </div>
+  </section>
+
+  <section id="memory" class="hidden">
+    <div class="card">
+      <h2>What Dots know about you</h2>
+      <p class="sub">Every Dot reads this. They add to it when they learn something useful. Change anything.</p>
+      <textarea id="memText" style="min-height:50vh"></textarea>
+      <div class="row"><button class="main" id="memSave">Save</button></div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const STATUS = { queued: "Up next", working: "Working", waiting: "Needs you", sleeping: "Sleeping",
+                 done: "Done", failed: "Hit a problem", stuck: "Stuck", stopped: "Stopped" };
+let view = "list", current = null, shotTimer = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} :
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+
+function show(v) {
+  view = v;
+  for (const s of ["list", "detail", "screen", "memory"]) $(s).classList.toggle("hidden", s !== v);
+  $("back").classList.toggle("hidden", v === "list");
+  $("title").textContent = v === "list" ? "Dots" : v === "screen" ? "Its screen" : v === "memory" ? "Memory" : "Dot";
+  clearInterval(shotTimer);
+  if (v === "screen") {
+    refreshShot(); shotTimer = setInterval(refreshShot, 1500);
+    api("/api/live").then((r) => { if (r.url) $("fullView").href = r.url; });
+  }
+  if (v === "memory") api("/api/memory").then((m) => { $("memText").value = m.text; });
+  refresh();
+}
+
+function refreshShot() {
+  const img = new Image();
+  img.onload = () => { $("shot").src = img.src; $("screenNote").textContent = "Its own computer, live."; };
+  img.onerror = () => { $("screenNote").textContent = "Its computer is off. Turn it on, or start a Dot."; };
+  img.src = "/api/screen.jpg?t=" + Date.now();
+}
+
+async function refresh() {
+  if (view === "list") {
+    const data = await api("/api/dots");
+    const box = $("dots");
+    if (!data.dots.length) { box.innerHTML = '<div class="empty">No Dots yet. Give one a job above.</div>'; return; }
+    box.innerHTML = data.dots.map((d) => `
+      <div class="card ${d.status}" data-id="${d.id}">
+        <div class="dot"><span class="pip"></span><div style="flex:1">
+          <div class="name">${esc(d.name)}</div>
+          <div class="sub">${STATUS[d.status] || d.status}${d.next ? " · next " + esc(d.next) : ""} · ${esc(d.when)}${d.schedule ? " · " + esc(d.schedule) : ""}</div>
+          ${d.status === "waiting" && d.question ? `<div class="sub" style="color:var(--amber)">${esc(d.question)}</div>` : ""}
+        </div></div>
+      </div>`).join("");
+    box.querySelectorAll("[data-id]").forEach((el) => el.onclick = () => { current = el.dataset.id; show("detail"); });
+  } else if (view === "detail" && current) {
+    const data = await api("/api/dots/" + current);
+    if (!data.dot) { show("list"); return; }
+    const d = data.dot;
+    $("title").textContent = d.name;
+    $("dstatus").textContent = (STATUS[d.status] || d.status) + (d.next ? " · next " + d.next : "") + (d.schedule ? " · " + d.schedule : "");
+    $("dgoal").textContent = d.goal;
+    $("chat").innerHTML = d.messages.slice(-30).map((m) =>
+      `<p class="${m.from === "you" ? "you" : "dotmsg"}">${esc(m.text)}</p>`).join("");
+    const asking = d.status === "waiting" && d.question;
+    $("askCard").classList.toggle("hidden", !asking);
+    if (asking) {
+      $("question").textContent = d.question;
+      $("okRow").classList.toggle("hidden", d.asking !== "ok");
+      $("replyRow").classList.toggle("hidden", d.asking === "ok");
+    }
+    const log = $("log"), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+    log.textContent = data.log || "Nothing yet.";
+    if (atEnd) log.scrollTop = log.scrollHeight;
+  }
+}
+
+$("go").onclick = async () => {
+  const goal = $("goal").value.trim();
+  if (!goal) return;
+  $("go").disabled = true;
+  const r = await api("/api/dots", { goal, computer: $("computer").value, schedule: $("schedule").value });
+  $("go").disabled = false;
+  $("goal").value = ""; $("schedule").value = "";
+  if (r.dot) { current = r.dot.id; show("detail"); }
+};
+$("back").onclick = () => show("list");
+$("screenBtn").onclick = () => show("screen");
+$("memBtn").onclick = () => show("memory");
+$("memSave").onclick = async () => { await api("/api/memory", { text: $("memText").value }); $("memSave").textContent = "Saved"; setTimeout(() => $("memSave").textContent = "Save", 1500); };
+document.querySelectorAll("[data-answer]").forEach((b) => b.onclick = () => api(`/api/dots/${current}/answer`, { text: b.dataset.answer }).then(refresh));
+$("sendAnswer").onclick = () => { const t = $("answerText").value.trim(); if (t) api(`/api/dots/${current}/answer`, { text: t }).then(() => { $("answerText").value = ""; refresh(); }); };
+$("sayBtn").onclick = () => { const t = $("say").value.trim(); if (t) api(`/api/dots/${current}/say`, { text: t }).then(() => { $("say").value = ""; refresh(); }); };
+$("againBtn").onclick = () => api(`/api/dots/${current}/again`, {}).then(refresh);
+$("stopBtn").onclick = () => api(`/api/dots/${current}/stop`, {}).then(refresh);
+$("delBtn").onclick = async () => { const r = await api(`/api/dots/${current}/delete`, {}); if (r.ok) show("list"); else refresh(); };
+$("vmStart").onclick = () => { $("screenNote").textContent = "Turning it on…"; api("/api/vm", { action: "start" }).then(refreshShot); };
+$("vmStop").onclick = () => api("/api/vm", { action: "stop" }).then(refreshShot);
+setInterval(() => { if (view === "list" || view === "detail") refresh(); }, 2500);
+if (location.search.includes("k=")) history.replaceState(null, "", "/");
+show("list");
+</script>
+</body>
+</html>

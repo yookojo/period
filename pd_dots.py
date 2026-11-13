@@ -5298,6 +5298,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             cookie = f"dotkey={hashlib.sha256(access_key().encode()).hexdigest()}; Path=/; Max-Age=31536000; SameSite=Strict"
             return self._send(200, PAGE_HTML, "text/html; charset=utf-8", {"Set-Cookie": cookie})
+        if path == "/chat":  # iMessage-style chat window (phone/chat.html), shown by the Dot Mac app (mac/DotChatApp.swift)
+            cookie = f"dotkey={hashlib.sha256(access_key().encode()).hexdigest()}; Path=/; Max-Age=31536000; SameSite=Strict"
+            page = (HERE / "phone" / "chat.html").read_bytes()
+            return self._send(200, page, "text/html; charset=utf-8", {"Set-Cookie": cookie})
+        if path == "/icon.png":
+            return self._send(200, (HERE / "phone" / "icon.png").read_bytes(), "image/png")
+        if path == "/avatar.jpg":  # the chat's picture of Dot: phone/avatar.jpg if you add one, else the icon
+            pic = HERE / "phone" / "avatar.jpg"
+            if pic.exists():
+                return self._send(200, pic.read_bytes(), "image/jpeg")
+            return self._send(200, (HERE / "phone" / "icon.png").read_bytes(), "image/png")
         if path == "/api/dots":
             return self._send(200, {"dots": [d.public() for d in all_dots()], "running": sorted(_procs),
                                     "line": line.connected(), "vm": _vm_ready()})

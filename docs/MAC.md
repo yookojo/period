@@ -58,6 +58,26 @@ Dot still works, but it can't see or click your screen, only run commands and us
 - **Using Claude Code inside Dot's computer** (the `vm_claude` tool) is optional. It needs its own sign-in once:
   `limactl shell dotpc` then `claude`.
 
+## The Dot app (chat like iMessage)
+
+If you'd rather not use Discord, build the Dot app. It's a chat window on your Mac that looks like iMessage:
+
+```
+bash mac/build-dot-app.sh                 # or: bash mac/build-dot-app.sh ~/Pictures/me.jpg for your own icon
+```
+
+Open it from Spotlight (Cmd+Space, type **Dot**). It has:
+
+- **Texting:** type a job and press Enter. Three bouncing dots mean Dot is working.
+- **Voice:** click the microphone, talk, then click it again. Your words go in the box. Dot always answers in text,
+  never out loud. The first time, macOS asks to allow the Microphone and Speech Recognition.
+- **Yes / No buttons** when Dot asks before doing something.
+- **Watch Dot's computer:** the screen button at the top right opens Dot's own computer in a window, already
+  signed in to the live view. You can click and type in there to help it, like signing in to a site.
+- **A short guide** the first time it opens, and the **?** button any time after.
+
+The app only works on the Mac Dot runs on. It needs the Xcode command line tools (`xcode-select --install`).
+
 ## Commands
 
 ```

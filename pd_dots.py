@@ -1941,9 +1941,7 @@ _FALSE_ALARM_RE = re.compile(
     r"\bdon'?t have access to (dot'?s computer|the vm|my computer|the dot pc)\b|"
     r"\b(vm|tool) (tool )?doesn'?t exist in this session\b", re.I)
 # Unprompted texts that are never worth a buzz: a status with nothing for him in it.
-_DM_NOISE_RE = re.compile(
-    r"^📚 (the sat coach can'?t reach the mac|the mac is back)|^📚 \S+ warm-up q\d+:|^📚 \S+ checked off:|"
-    r"^📚 \d{1,2}:\d{2} check-in sent to |^📚 hello text sent to ", re.I)
+_DM_NOISE_RE = re.compile(r"(?!)")  # status lines that never need a buzz (none yet)
 # A lead-in with nothing after it ("**Needs your eye**", "Waiting on you, as noted:") or an ask with no subject.
 _DM_FRAGMENT_RE = re.compile(
     r"^(\W*\*\*[^*\n]{1,80}\*\*\W*|[^\n]{0,70}:\s*|"

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dot</title>
+<link rel="icon" href="/icon.png">
+<style>
+  :root {
+    --bg: #ffffff;
+    --header: rgba(246, 246, 248, 0.92);
+    --line: #d9d9de;
+    --me: #0a7cff;
+    --me-text: #ffffff;
+    --them: #e9e9eb;
+    --them-text: #000000;
+    --muted: #8a8a8e;
+    --input-bg: #ffffff;
+    --input-line: #c8c8cc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --header: rgba(28, 28, 30, 0.92);
+      --line: #2c2c2e;
+      --them: #262629;
+      --them-text: #ffffff;
+      --muted: #8d8d93;
+      --input-bg: #1c1c1e;
+      --input-line: #3a3a3c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--them-text);
+    font: 16px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    display: flex; flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 16px 8px;
+    background: var(--header);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--line);
+    -webkit-app-region: drag;
+  }
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(180deg, #a5abb8, #858a96);
+    color: #fff; display: grid; place-items: center;
+    font-size: 22px; font-weight: 500;
+    object-fit: cover;
+  }
+  .name { font-size: 12px; color: var(--them-text); }
+  .status { font-size: 11px; color: var(--muted); min-height: 13px; }
+  #screen {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border: 0; border-radius: 50%;
+    background: transparent; color: var(--me); cursor: pointer;
+    display: grid; place-items: center;
+    -webkit-app-region: no-drag;
+  }
+  #screen:hover, #help:hover { background: var(--them); }
+  #help {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 1.6px solid var(--me); background: transparent; color: var(--me);
+    font: 600 16px -apple-system, sans-serif; cursor: pointer;
+    -webkit-app-region: no-drag;
+  }
+  #guide {
+    position: fixed; inset: 0; z-index: 10;
+    background: rgba(0,0,0,.35); display: grid; place-items: center; padding: 16px;
+  }
+  #guide[hidden] { display: none; }
+  .card {
+    background: var(--bg); color: var(--them-text);
+    border-radius: 16px; max-width: 400px; width: 100%; max-height: 100%; overflow-y: auto;
+    padding: 22px 22px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+  }
+  .card h2 { margin: 0 0 4px; font-size: 20px; }
+  .card .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .step { display: flex; gap: 12px; margin-bottom: 14px; font-size: 15px; line-height: 1.4; }
+  .step .ic {
+    flex: none; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--them); display: grid; place-items: center; font-size: 17px;
+  }
+  .step b { display: block; }
+  .card .main {
+    width: 100%; margin-top: 6px; border: 0; border-radius: 12px;
+    background: var(--me); color: #fff; font: 600 16px -apple-system, sans-serif;
+    padding: 12px; cursor: pointer;
+  }
+  #screen svg { width: 22px; height: 22px; }
+  main {
+    flex: 1; overflow-y: auto;
+    padding: 12px 14px 8px;
+    display: flex; flex-direction: column;
+  }
+  .stamp {
+    align-self: center; font-size: 11px; color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  .stamp b { font-weight: 600; }
+  .row { display: flex; margin-top: 2px; }
+  .row.me { justify-content: flex-end; }
+  .row.gap { margin-top: 10px; }
+  .bubble {
+    max-width: min(75%, 520px);
+    padding: 7px 12px 8px;
+    border-radius: 18px;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    position: relative;
+  }
+  .me .bubble { background: var(--me); color: var(--me-text); }
+  .them .bubble { background: var(--them); color: var(--them-text); }
+  .me.tail .bubble { border-bottom-right-radius: 5px; }
+  .them.tail .bubble { border-bottom-left-radius: 5px; }
+  .bubble a { color: inherit; text-decoration: underline; }
+  .bubble.failed { opacity: .55; }
+  .delivered { align-self: flex-end; font-size: 11px; color: var(--muted); margin: 2px 4px 0; }
+  .typing .bubble { display: flex; gap: 4px; padding: 12px 14px; }
+  .typing i {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--muted);
+    animation: blink 1.4s infinite both;
+  }
+  .typing i:nth-child(2) { animation-delay: .2s; }
+  .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .3; } 40% { opacity: 1; } }
+  .empty { margin: auto; text-align: center; color: var(--muted); font-size: 14px; padding: 24px; }
+  .chips { display: flex; gap: 8px; justify-content: flex-end; padding: 0 14px 6px; flex-wrap: wrap; }
+  .chips button {
+    border: 1px solid var(--me); color: var(--me); background: transparent;
+    border-radius: 16px; padding: 5px 14px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  footer {
+    display: flex; align-items: flex-end; gap: 8px;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg);
+  }
+  textarea {
+    flex: 1; resize: none; max-height: 140px;
+    border: 1px solid var(--input-line); border-radius: 18px;
+    background: var(--input-bg); color: var(--them-text);
+    padding: 7px 14px; font: inherit; line-height: 1.3; outline: none;
+  }
+  textarea::placeholder { color: var(--muted); }
+  #send {
+    width: 30px; height: 30px; margin-bottom: 3px; flex: none;
+    border: 0; border-radius: 50%; background: var(--me); color: #fff;
+    display: grid; place-items: center; cursor: pointer;
+    transition: opacity .15s;
+  }
+  #send:disabled { opacity: .35; cursor: default; }
+  #mic {
+    width: 34px; height: 34px; margin-bottom: 1px; flex: none;
+    border: 0; border-radius: 50%; background: transparent; color: var(--muted);
+    display: grid; place-items: center; cursor: pointer;
+  }
+  #mic:hover { color: var(--me); }
+  #mic svg { width: 22px; height: 22px; }
+  #mic.on { background: #ff3b30; color: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,48,.5); } 50% { box-shadow: 0 0 0 6px rgba(255,59,48,0); } }
+  #send svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <img class="avatar" src="/avatar.jpg" alt="">
+  <div class="name">Dot</div>
+  <div class="status" id="status"></div>
+  <button id="help" title="How to use Dot">?</button>
+  <button id="screen" title="Watch Dot's computer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+  </button>
+</header>
+<div id="guide" hidden>
+  <div class="card" role="dialog" aria-label="How to use Dot">
+    <h2>Meet Dot 👋</h2>
+    <p class="sub">Dot is a helper that does tasks for you on the computer. You just tell it what you want, like texting a friend.</p>
+    <div class="step"><div class="ic">💬</div><div><b>Tell it what you need</b>Type at the bottom and press Enter. For example: "find me cheap flights to Newark for Thanksgiving" or "what's the weather this weekend?"</div></div>
+    <div class="step"><div class="ic">🎤</div><div><b>Or just say it</b>Click the microphone, talk, then click it again when you're done. Your words appear in the box. Press Enter to send. Dot answers in writing, never out loud.</div></div>
+    <div class="step"><div class="ic">💭</div><div><b>Wait for its answer</b>When you see the three bouncing dots, Dot is working. Bigger jobs can take a few minutes. You can close this window and it keeps going.</div></div>
+    <div class="step"><div class="ic">✅</div><div><b>It asks before anything big</b>Before spending money or changing important things, Dot asks first. Tap <b style="display:inline">Yes</b> or <b style="display:inline">No</b>, or just type your answer.</div></div>
+    <div class="step"><div class="ic">🖥️</div><div><b>Watch it work</b>Dot has its own separate computer that lives inside this Mac. Click the little screen at the top right to watch what it's doing. You can also click and type in there to help it, like signing in to a website.</div></div>
+    <div class="step"><div class="ic">❓</div><div><b>Need this again?</b>Click the <b style="display:inline">?</b> at the top left any time. And if you're ever unsure, just ask Dot. It's happy to explain.</div></div>
+    <button class="main" id="guideOk">Got it</button>
+  </div>
+</div>
+<main id="msgs"><div class="empty">Text Dot a job, like<br>"find me cheap flights to Newark for Thanksgiving"</div></main>
+<div class="chips" id="chips" hidden>
+  <button data-say="yes">Yes</button>
+  <button data-say="no">No</button>
+</div>
+<footer>
+  <button id="mic" hidden aria-label="Talk" title="Talk to Dot (click again to stop)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+  </button>
+  <textarea id="box" rows="1" placeholder="iMessage" autofocus></textarea>
+  <button id="send" disabled aria-label="Send">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>
+  </button>
+</footer>
+<script>
+const CHAT = "me";
+const msgs = document.getElementById("msgs");
+const box = document.getElementById("box");
+const send = document.getElementById("send");
+const chips = document.getElementById("chips");
+const statusEl = document.getElementById("status");
+let rows = [], pending = [], lastKey = "";
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+function esc(s) {
+  return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function linkify(s) {
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]])/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+function when(t) {
+  const d = new Date(t * 1000), now = new Date();
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const days = Math.floor((new Date(now.toDateString()) - new Date(d.toDateString())) / 864e5);
+  const day = days === 0 ? "Today" : days === 1 ? "Yesterday" : days < 7
+    ? d.toLocaleDateString([], { weekday: "long" }) : d.toLocaleDateString([], { month: "short", day: "numeric" });
+  return `<b>${day}</b> ${time}`;
+}
+
+function render() {
+  const all = rows.concat(pending);
+  const working = rows.some(m => ["working", "queued"].includes(m.status));
+  const lastMine = all.length && all[all.length - 1].from === "you";
+  const typing = working || (lastMine && pending.length === 0 && Date.now() / 1000 - all[all.length - 1].t < 120);
+  const key = JSON.stringify(all.map(m => [m.t, m.text])) + typing;
+  if (key === lastKey) return;
+  lastKey = key;
+
+  const atBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80;
+  if (!all.length) {
+    msgs.innerHTML = '<div class="empty">Text Dot a job, like<br>"find me cheap flights to Newark for Thanksgiving"</div>';
+  } else {
+    let html = "", prevT = 0;
+    all.forEach((m, i) => {
+      const mine = m.from === "you";
+      const next = all[i + 1];
+      if (m.t - prevT > 3600) html += `<div class="stamp">${when(m.t)}</div>`;
+      const gap = i > 0 && all[i - 1].from !== m.from && m.t - prevT <= 3600;
+      const tail = !next || next.from !== m.from || next.t - m.t > 60;
+      html += `<div class="row ${mine ? "me" : "them"}${tail ? " tail" : ""}${gap ? " gap" : ""}">` +
+              `<div class="bubble${m.failed ? " failed" : ""}">${linkify(m.text || "")}</div></div>`;
+      prevT = m.t;
+    });
+    const last = all[all.length - 1];
+    if (last.from === "you") html += `<div class="delivered">${last.sending ? "Sending…" : last.failed ? "Not Delivered" : "Delivered"}</div>`;
+    if (typing) html += '<div class="row them tail gap typing"><div class="bubble"><i></i><i></i><i></i></div></div>';
+    msgs.innerHTML = html;
+  }
+  statusEl.textContent = working ? "working on it…" : "";
+  const lastDot = [...rows].reverse().find(m => m.from === "dot");
+  chips.hidden = !(lastDot && !lastMine && /\?\s*$|\b(ok|okay) to\b|\bshould i\b|\byes or no\b/i.test(lastDot.text || ""));
+  if (atBottom || lastMine) msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function poll() {
+  try {
+    const r = await api(`/api/chat?chat=local:${CHAT}`);
+    rows = r.chat.filter(m => !m.quiet && (m.text || "").trim());
+    pending = pending.filter(p => !rows.some(m => m.from === "you" && m.text === p.text && m.t >= p.t - 5));
+    render();
+  } catch (e) {
+    statusEl.textContent = "Dot isn't answering — is it running?";
+  }
+}
+
+async function say(text) {
+  if (typeof stopVoice === "function") stopVoice();
+  text = text.trim();
+  if (!text) return;
+  const p = { from: "you", text, t: Date.now() / 1000, sending: true };
+  pending.push(p);
+  render();
+  try {
+    await api("/api/dm", { chat: CHAT, text });
+    p.sending = false;
+  } catch (e) {
+    p.sending = false; p.failed = true;
+  }
+  render();
+  setTimeout(poll, 400);
+}
+
+function grow() {
+  box.style.height = "auto";
+  box.style.height = Math.min(box.scrollHeight + 2, 140) + "px";
+  send.disabled = !box.value.trim();
+}
+box.addEventListener("input", grow);
+box.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    const t = box.value; box.value = ""; grow(); say(t);
+  }
+});
+send.addEventListener("click", () => { const t = box.value; box.value = ""; grow(); say(t); box.focus(); });
+// Voice: the Dot app turns speech into text in the box (Apple's speech recognition). Dot only ever replies in text.
+const mic = document.getElementById("mic");
+const voice = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.voice;
+let listening = false, before = "", accept = false;
+if (voice) mic.hidden = false;
+function setListening(on) {
+  listening = on;
+  mic.classList.toggle("on", on);
+  box.placeholder = on ? "Listening…" : "iMessage";
+}
+mic.addEventListener("click", () => {
+  if (!listening) { before = box.value ? box.value.replace(/\s*$/, " ") : ""; accept = true; setListening(true); voice.postMessage("start"); }
+  else { setListening(false); voice.postMessage("stop"); }
+  box.focus();
+});
+window.dotVoice = (text, done) => {
+  if (!accept) return;
+  box.value = before + text; grow();
+  if (done) setListening(false);
+};
+window.dotVoiceError = (msg) => {
+  setListening(false);
+  statusEl.textContent = msg;
+  setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ""; }, 6000);
+};
+function stopVoice() { accept = false; if (listening) { setListening(false); voice.postMessage("stop"); } }
+
+const guide = document.getElementById("guide");
+function showGuide(on) { guide.hidden = !on; if (!on) box.focus(); }
+document.getElementById("help").addEventListener("click", () => showGuide(true));
+document.getElementById("guideOk").addEventListener("click", () => {
+  showGuide(false);
+  try { localStorage.setItem("dotGuideSeen", "1"); } catch (e) {}
+});
+guide.addEventListener("click", e => { if (e.target === guide) showGuide(false); });
+try { if (!localStorage.getItem("dotGuideSeen")) showGuide(true); } catch (e) { showGuide(true); }
+
+const screenApp = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.screen;
+document.getElementById("screen").addEventListener("click", async () => {
+  const w = screenApp ? null : window.open("about:blank", "dotscreen", "width=1100,height=720");
+  try {
+    statusEl.textContent = "Opening Dot's computer…";
+    try { await api("/api/vm", { action: "start" }); } catch (e) {}  // turns on just the parts that are off
+    statusEl.textContent = "";
+    const r = await api("/api/live");  // the live-view link with its password filled in (this Mac only)
+    if (screenApp) screenApp.postMessage(r.url); else w.location = r.url;
+  } catch (e) {
+    if (w) w.close();
+    statusEl.textContent = "Dot's computer is turned off right now";
+  }
+});
+chips.addEventListener("click", e => { if (e.target.dataset.say) say(e.target.dataset.say); });
+
+poll();
+setInterval(poll, 1500);
+</script>
+</body>
+</html>

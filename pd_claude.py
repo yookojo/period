@@ -1,6 +1,6 @@
 """Dot asks Claude Code on the user's PC to research or read through things. Read-only.
 
-Claude runs on its own account (not the remote backend's 6-a-minute limit) and works through a
+Claude runs on its own account (not the server's 6-a-minute limit) and works through a
 whole look-up by itself, so a big research or reading job is one call for Dot.
 
 Read-only by the user's choice (2026-10-19): Claude can research and read files, but
@@ -127,7 +127,7 @@ def tool_claude(args, console=None, safe=str):
 GUIDE = """
 claude {"task": "..."} asks Claude Code on the user's PC to dig into something and answer
 once. It does many look-ups on its own, on its own account, so it doesn't use up your
-the remote backend sends. Use it for big look-ups instead of doing every step yourself:
+the server sends. Use it for big look-ups instead of doing every step yourself:
 - deep web research or a write-up: {"task": "..."} (it searches and reads the web)
 - reading through their files or a codebase: {"task": "...", "folder": "C:/Users/you/..."}
   (no web in this mode)

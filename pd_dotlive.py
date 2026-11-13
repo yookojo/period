@@ -546,9 +546,6 @@ SLASH_COMMANDS = [
                               {"name": "morning brief", "value": "brief"},
                               {"name": "live screen while working", "value": "live_screen"}]},
                  {"type": 5, "name": "on", "description": "on or off", "required": True}]},
-    {"name": "questions", "description": "Answer what your job applications are waiting on, one at a time"},
-    {"name": "captchas", "description": "Do the captcha forms from your phone (Dot fills the rest)"},
-    {"name": "todo", "description": "What your applications are waiting on: questions, captchas, essays"},
     {"name": "computer", "description": "Which computer Dot may use",
      "options": [{"type": 3, "name": "use", "description": "where Dot works", "required": True,
                   "choices": [{"name": "only Dot's own computer (I'm using mine)", "value": "vm"},
@@ -671,14 +668,6 @@ def _slash(i, chat, name, opts):
         return _respond(i, 4, f"{label}: {'on 👍' if on else 'off'}")
     if name == "computer":
         return _respond(i, 4, d.set_computer_mode(opts.get("use") or "auto") or "hm, didn't get that")
-    if name in ("questions", "captchas", "todo"):
-        import pd_ownerq
-        _respond(i, 4, {"questions": "pulling up the first one…", "captchas": "getting the desk ready…",
-                        "todo": "checking…"}[name])
-        job = {"questions": pd_ownerq.ask_next, "captchas": pd_ownerq.captcha_link,
-               "todo": lambda c: pd_ownerq.digest(c, force=True)}[name]
-        threading.Thread(target=job, args=(chat,), daemon=True).start()
-        return
     if name in ("brief", "inbox"):
         _respond(i, 4, "pulling it together, gimme a sec" if name == "brief" else "checking your email…")
         text = "give me my brief right now" if name == "brief" else "anything important in my email?"
@@ -748,15 +737,9 @@ def _button(i, chat, cid):
     if kind in ("mail", "text", "due"):
         import pd_dotwatch
         return pd_dotwatch.on_button(i, chat, kind, rest)
-    if kind == "oq":  # application questions / captchas / daily to-do (pd_ownerq.py)
-        import pd_ownerq
-        return pd_ownerq.on_button(i, chat, rest)
     _respond(i, 6)
 
 
 def _modal(i, chat, data):
-    if (data.get("custom_id") or "").startswith("oq:"):
-        import pd_ownerq
-        return pd_ownerq.on_modal(i, chat, data)
     import pd_dotwatch
     return pd_dotwatch.on_modal(i, chat, data)

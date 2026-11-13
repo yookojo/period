@@ -25,7 +25,7 @@ Privacy (the PC has a known infostealer, so keep little on disk):
   own ~250-char preview).
 - Codes, one-time passwords, verification, password-reset and sign-in mail keep
   no text at all, and digits in their subject are masked.
-- Readers drop Gmail rows in remote-only mode. `index_off` in DOTS_DIR turns
+- Readers drop Gmail rows in server-only mode. `index_off` in DOTS_DIR turns
   the whole thing off (the loop exits, readers return None).
 
 Readers never raise and return None to mean "use the live tool"; pd_fast falls
@@ -1463,7 +1463,7 @@ def _search(conn, s, query, count, now):
             return None  # with no date limit, live search could find older mail the index doesn't keep
         rows_by[account] = rows
     results = [r for src in sources for r in rows_by["outlook" if src == "outlook" else src.split(":", 1)[1]]]
-    if "outlook" in rows_by:  # the remote backend mail forwarded into Gmail is the same message: show it once, from Outlook
+    if "outlook" in rows_by:  # the server mail forwarded into Gmail is the same message: show it once, from Outlook
         seen = {(r["subject"] or "").strip().lower() for r in rows_by["outlook"]}
         try:
             fwd = {f["into"] for f in s.email_forwards()}
@@ -1478,7 +1478,7 @@ def _search(conn, s, query, count, now):
     results.sort(key=lambda r: -(r["date_ts"] or 0))
     oldest = max(ages.values())
     last_hits[0], last_hits[1] = len(results), round(oldest, 1)
-    src_names = (["Outlook (full the remote backend mailbox)"] if "outlook" in rows_by else []) + \
+    src_names = (["Outlook (full the server mailbox)"] if "outlook" in rows_by else []) + \
                 [f"Gmail {a}" for a in rows_by if a != "outlook"]
     lines = [f"Emails matching {query!r}, newest first (searched: {', '.join(src_names)}; from Dot's "
              f"mail index, synced {_ago(oldest)}. The index has 60 days of every subject and sender plus the full "
@@ -1550,7 +1550,7 @@ def _digest(conn, s, back_days, ahead_days, limit_chars, now):
             continue
         if any(c["msg_ts"] >= r["msg_ts"] and _same_company(c["company"], r["company"]) for c in closers):
             continue
-        # The same mail forwarded from the remote backend into Gmail, or one reminder after another: shown once.
+        # The same mail forwarded from the server into Gmail, or one reminder after another: shown once.
         what_key = re.sub(r"[^a-z0-9]", "", re.sub(r"^\w+:\s*|\[[^]]*\]", "", (r["what"] or "").lower()))[:40]
         key = (what_key, round((r["due_ts"] or 0) / 86400))
         if key in keys:

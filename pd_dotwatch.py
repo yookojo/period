@@ -76,7 +76,7 @@ def _channel():
     return _live().channel_of(_chat())
 
 
-_fast_fail = [""]  # why the last _fast_json gave nothing: "auth" (no usable the remote backend login) or ""
+_fast_fail = [""]  # why the last _fast_json gave nothing: "auth" (no usable the server login) or ""
 
 
 def _fast_json(prompt):
@@ -350,7 +350,7 @@ def check_inbox():
     seen = set(st.get("mail_seen", []))
     first = "mail_seen" not in st
     new = [m for m in mails if _key(m["account"], m["id"]) not in seen]
-    # the remote backend Outlook forwards to Gmail, so one email shows up in both accounts: one card per sender + subject.
+    # the server Outlook forwards to Gmail, so one email shows up in both accounts: one card per sender + subject.
     topics, now, fresh = dict(st.get("mail_topics") or {}), time.time(), []
     for m in new:
         t = _key(_name(m["sender"]).lower(), _norm_subject(m["subject"]))
@@ -366,7 +366,7 @@ def check_inbox():
             rows.append(f"{n}. From: {m['sender']} | Subject: {m['subject']}" + (f" | Body: {body}" if body else ""))
         listing = "\n".join(rows)
         verdict = _fast_json(
-            "You sort email for a remote backend student who only wants a text when they'd think \"oh, thank you "
+            "You sort email for a server student who only wants a text when they'd think \"oh, thank you "
             "for telling me\". The bar is HIGH: most email is not important, and when in doubt it's not.\n"
             "Important: a real person writing to them personally and expecting an answer (a professor, TA, "
             "recruiter, friend, a company's support person replying to them); an interview invite, offer, "
@@ -393,7 +393,7 @@ def check_inbox():
             'person wrote it and expects an answer from them; false for automated notices, codes, receipts>, '
             '"line": "<the text, as above>"}]')
         if verdict is None and _fast_fail[0] == "auth":
-            # No remote backend login right now: these stay new and are sorted once it's back. They used to be
+            # No server login right now: these stay new and are sorted once it's back. They used to be
             # marked seen first, so every email that came in while the login was out never got a card.
             return
         verdict = verdict or []

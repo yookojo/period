@@ -16,7 +16,7 @@
 Each Dot has a goal, a status, a log and optionally a schedule. The daemon runs
 one at a time through the normal agent loop (run_agent_loop), on the Dot PC
 (pd_vm) by default and on this PC when the goal needs your apps or files. It is
-the only thing that talks to the remote backend for Dots, so the 6-a-minute limit and
+the only thing that talks to the server for Dots, so the 6-a-minute limit and
 the login token are shared safely.
 
 Ways in and out:
@@ -64,7 +64,7 @@ STEPS_PER_RUN = 30
 MAX_RUNS_UNTIL_DONE = 2         # runs of one request before it checks in with you
 TASK_TIME_LIMIT_SEC = 15 * 60   # one request's working time before it checks in
 SAME_CALL_LIMIT = 3             # the exact same action this many times = stuck
-JOB_SENDS_PER_MINUTE = 5        # of the remote backend's 6; the last one is kept for answering texts
+JOB_SENDS_PER_MINUTE = 5        # of the server's 6; the last one is kept for answering texts
 BURST_SEC = 2.0                 # texts this close together are read as one message
 TRAIL_KEEP = 25                 # steps remembered per job
 SCREEN_WAIT_SEC = 20            # wait this long for a busy screen, then work around it
@@ -130,23 +130,8 @@ def save_settings(s):
     _write_json(SETTINGS_PATH, s)
 
 
-def owner_extras():
-    """The owner's own add-ons: the internship pipeline (queue sync, lanes, apply loop, owner questions),
-    application codes from his Gmail, and the SAT Coach for StudentA and StudentB. On for his Windows PC as before;
-    off on any other install (a friend's Mac) unless settings()["owner_extras"] says otherwise."""
-    v = settings().get("owner_extras")
-    return bool(v) if v is not None else sys.platform == "win32"
-
-
 def _front_template():
-    """FRONT_PROMPT, without the SAT Coach parts on an install that doesn't run it."""
-    if owner_extras():
-        return FRONT_PROMPT
-    # (the shared copy for friends has the students' names swapped out, so match the shape, not the names)
-    text = re.sub(r' \(not \w+ or \w+, that\'s "sat"\)', "", FRONT_PROMPT)
-    return "\n".join(ln for ln in text.splitlines()
-                     if not re.search(r'studenta|studentb|student[ab]\b|sat coach|^\s*"sat":', ln, re.I)
-                     and ln.strip() != "{sat}")
+    return FRONT_PROMPT
 
 
 # --- keeping secrets off disk ------------------------------------------------------
@@ -507,7 +492,7 @@ def memory_for(goal, budget=2500):
     """What a job should know about them: the rules always, personal form facts
     only for applications and forms, then the facts most about this job (like
     the lessons). Replaces taking the file's last N characters, which cut off
-    "don't send history to the remote backend"."""
+    "don't send history to the server"."""
     lines = [re.sub(r"^\s*[-*]\s*", "", l).strip() for l in memory_text().splitlines()]
     lines = [l for l in lines if l and not l.startswith("#")]
     if not lines:
@@ -1139,7 +1124,7 @@ class DotLine:
                 if m.get("isFromMe") or not guid or guid in known:
                     continue
                 address = (m.get("handle") or {}).get("address", "")
-                if not self._allowed(address):  # the SAT Coach's students (and anyone else) aren't Dot's
+                if not self._allowed(address):  # people other than them aren't Dot's
                     continue
                 known.add(guid)
                 seen.append(guid)
@@ -1848,7 +1833,7 @@ BRAND_VERSION = 1  # bump to re-apply the name and picture
 
 
 def _avatar_png():
-    """Dot's picture: a soft white dot on the remote backend red, with a small glow."""
+    """Dot's picture: a soft white dot on the server red, with a small glow."""
     from PIL import Image, ImageDraw, ImageFilter
     size = 512
     img = Image.new("RGB", (size, size), (140, 21, 21))
@@ -1913,7 +1898,7 @@ def send_to(chat, text, files=(), components=None, fallback=True):
 
 # --- what reaches his phone: one gate for every Discord DM -------------------------------------------------------
 # Owner 2026-11-09: "dot spams me". Nov 6-8 had 813 Dot DMs against 75 of his (about 270 a day, 260 of them between
-# 11 PM and 8 AM): 216 "SAT Coach can't reach the Mac" / "the Mac is back" flaps, 103 live-screen cards from the
+# 11 PM and 8 AM): 216 "can't reach the Mac" / "the Mac is back" flaps, 103 live-screen cards from the
 # background lane, and ~300 lane "still waiting on you" fragments asking the same five questions all night.
 # Every DM to him goes through _gate_discord. A reply (he texted or tapped in the last REPLY_WINDOW_SEC, or it's a
 # job he started) only loses repeats and "I can't reach my tools" claims. Anything unprompted also waits for the
@@ -2074,15 +2059,6 @@ def _dejargon(text):
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def _sat_mirror(text):
-    """The SAT Coach mirrors every text with a student ("📚 StudentA: ... / 🤖 SAT Coach: ..."). Only its
-    "📌 for you" note is for him (the conversations are on the transcript page he asked for); None = not a mirror."""
-    if not text.startswith("📚 ") or "\n🤖 SAT Coach:" not in text:
-        return None
-    pin = text.split("📌 for you:", 1)[1].strip() if "📌 for you:" in text else ""
-    return f"📚 {pin}" if pin else ""
-
-
 def _more_push(rest):
     try:
         st = json.loads(MORE_PATH.read_text(encoding="utf-8"))
@@ -2149,7 +2125,7 @@ def _gate_discord(text, files=(), components=None, asked=None, urgent=None, cap=
     now, seen = _now(), _owner_seen_at()
     if asked is not None:
         reply = bool(asked)
-    elif text.startswith(SYSTEM_ALERT_PREFIXES):  # the SAT Coach, mail cards, deadlines, the to-do: his own
+    elif text.startswith(SYSTEM_ALERT_PREFIXES):  # mail cards, deadlines, the to-do: his own
         reply = bool(seen) and now - seen < SYSTEM_REPLY_SEC  # command's answer comes back within seconds
     else:
         reply = bool(seen) and now - seen < REPLY_WINDOW_SEC
@@ -2158,12 +2134,6 @@ def _gate_discord(text, files=(), components=None, asked=None, urgent=None, cap=
         _outbox_log("dropped", "claims it can't reach its tools", text)
         return None
     if not reply:
-        mirror = _sat_mirror(text)
-        if mirror is not None:
-            if not mirror:
-                _outbox_log("dropped", "sat coach mirror (it's on the transcript page)", text)
-                return None
-            text = mirror
         if _DM_NOISE_RE.search(text):
             _outbox_log("dropped", "status with nothing for him", text)
             return None
@@ -2398,7 +2368,7 @@ def _background_text(dot, text, ask=False, buttons=False):
     (b) at most one "what went through" summary every QUIET_SUMMARY_GAP_SEC, cut to the sentences that say so;
     (c) an OK prompt with buttons, a QUESTION (see _background_question_ok), or an urgent line that needs him
         (a deadline today or tomorrow, a sign-in link). "Still waiting on your answer" reminders never go: his
-        application questions reach him one at a time through the daily to-do's buttons (pd_ownerq)."""
+        application questions reach him one at a time through the daily to-do's buttons ."""
     text = (text or "").strip()
     if not text:
         return ""
@@ -2622,8 +2592,6 @@ def _prompt_for(dot, goal=None):
     elif computer_mode() == "auto" and dot.computer == "pc":
         computer = "This job needs their own PC (their apps, files and logged-in accounts)."
     mem = memory_for(goal)  # the rules, plus what's about this job (not the file's tail)
-    if owner_extras() and re.search(r"\b(studenta|studentb|sat coach|sat|my (brother|bro))\b", goal, re.I):
-        mem = (mem + "\n" if mem else "") + "[STUDENTA AND STUDENTB, from the SAT Coach]\n" + sat_context(goal)
     rules = standing_text()
     recent = _clean_context(dot.context) or "\n".join(
         f"{'them' if m['from'] == 'you' else 'you'}: {m['text']}" for m in dot.chat()[-10:]
@@ -3533,14 +3501,15 @@ def run_dot(dot):
         config = s.load_config()
         s.renew_login_if_due(config, hours_before=1, quiet=True)
         if (s.login_hours_left(config) or 0) <= 0:
-            _update(dot, status="failed", summary="the remote backend login expired")
-            tell_user(dot, "my the remote backend login ran out, so I can't think right now 😅 open Period "
+            _update(dot, status="failed", summary="the server login expired")
+            tell_user(dot, "my the server login ran out, so I can't think right now 😅 open Period "
                            "on your PC once and sign in, then text me again")
             return
         model = (s.resolve_model_name(dot.model) if dot.model else None) or s.DEFAULT_MODEL
         try:  # page only (the job's log), never texted
             _ccm = __import__("pd_claudecall")
-            dot.log(("engine: remote (not a Claude model)" if model not in _ccm.MODELS else
+            only = bool(getattr(s, "claude_only", None) and s.claude_only())
+            dot.log(("engine: remote (not a Claude model)" if model not in _ccm.MODELS and not only else
                      _ccm.describe(dot, s, _cc, is_lane=_is_lane, autonomous=_autonomous)) + "\n")
         except Exception:
             pass
@@ -3619,7 +3588,7 @@ def run_dot(dot):
             stop_typing()
             if relay.card is not None:
                 relay.card.finish()
-        # Only a conversation the remote backend actually answered in is worth continuing. A first
+        # Only a conversation the server actually answered in is worth continuing. A first
         # request it refused leaves a made-up id with nothing in it: "keep going" there
         # reached a model that had never seen the task, and it did another job's work.
         # (Sends are counted per reply by the relay as they happen.) A run cut short
@@ -3698,7 +3667,7 @@ def _spin_guard(dot, on_disk, relay, repeat=""):
     tool. _did_no_work skips lanes, endless jobs, later runs and replies ending in a question, so nothing caught it for
     12 hours. Any job whose runs call no tool SPIN_RUNS times in a row now restarts in a fresh conversation with its
     summary and chat context wiped (they carried the loop); a further SPIN_RUNS stops it: a lane is restarted clean
-    by pd_dotlane, any other job tells them once that it got stuck."""
+    by the lane tick, any other job tells them once that it got stuck."""
     if relay._calls or relay.cut_short or dot.kind != "task":
         if on_disk.spin_runs:
             _update(dot, spin_runs=0)
@@ -3722,7 +3691,7 @@ def _spin_guard(dot, on_disk, relay, repeat=""):
                 context=SPIN_CONTEXT, spin_runs=spins, nudges=0)
         return True
     dot.log(f"\n[spin guard] still no tool after a fresh start ({spins} runs): stopped\n")
-    if _is_lane(dot):  # pd_dotlane starts a clean one; no text (the owner's no-chatter rule)
+    if _is_lane(dot):  # the lane tick starts a clean one; no text (the owner's no-chatter rule)
         _update(dot, status="stopped", spin_runs=0)
         return True
     _update(dot, status="stuck", spin_runs=0,
@@ -3786,7 +3755,7 @@ def _after_run(dot, stop, relay):
         _update(dot, summary=summary, status="queued", next_run=_now())
         return
     if stop in _API_HICCUPS and dot.api_errors < 4:
-        # the remote backend refused or dropped a call (busy, too
+        # the server refused or dropped a call (busy, too
         # many at once): try again shortly without bothering them. It isn't a
         # real run, so it doesn't count towards checking in.
         _update(dot, status="queued", next_run=_now() + 15 * (dot.api_errors + 1),
@@ -3908,7 +3877,7 @@ def _after_wait(dot, wait, summary):
     _update(dot, summary=summary, status="sleeping", next_run=nxt or _now() + 1800, wait_wakes=wakes)
 
 
-_API_HICCUPS = ("the remote backend returned an error", "the remote backend returned an empty reply", "the remote backend API call failed",
+_API_HICCUPS = ("the server returned an error", "the server returned an empty reply", "the server API call failed",
                 "Rate limit (quota) blocked the send")  # out of sends for the minute: wait, it isn't a failure
 
 
@@ -4188,7 +4157,7 @@ _login_renew = {"busy": False, "next": 0.0}
 
 
 def keep_login_fresh():
-    """The remote backend session has a fixed end; refreshing past it gets "403 Invalid
+    """The server session has a fixed end; refreshing past it gets "403 Invalid
     refresh token". Only a starting job renewed it, so when no job started in its
     last hour the quick brain and the watcher failed and every text became a job
     (2026-10-20 20:12). Renew it here, in the background with no window, once
@@ -4213,7 +4182,7 @@ def keep_login_fresh():
             if not ok and getattr(s, "_LOGIN_PROBLEM", [None])[0] == "remote":
                 print(f"[login renew] {s.REMOTE_REFUSED_MSG}", file=sys.stderr)
             elif not ok and (s.login_hours_left(s.load_config()) or 0) <= 1:
-                print("[login renew] background renewal didn't finish (the remote backend may want a sign-in)",
+                print("[login renew] background renewal didn't finish (the server may want a sign-in)",
                       file=sys.stderr)
         except Exception as e:
             print(f"[login renew] {str(e)[:150]}", file=sys.stderr)
@@ -4256,13 +4225,6 @@ def queue_sync():
         importlib.reload(pd_autotool).tick()
     except Exception as e:
         print(f"[autotool] {e}", file=sys.stderr)
-
-
-APPLY_LOOP = ""
-
-
-def apply_keepalive(distro):
-    return False
 
 
 def _queue_sync_safe():
@@ -4463,7 +4425,6 @@ You are the quick-reply side of Dot. Read their new text and decide what to do. 
   "standing": "<if they set or change an on/off state or rule that should hold for every job until they change it again ('pause the applications', 'resume submissions', 'only run one job at a time', 'don't text me after midnight'): an object like {{"applications": "paused: don't submit anything until they say resume"}}, one key per topic, with the rule as it stands NOW; an empty string clears that topic; else null>",
   "fast": "<if the request is one of these everyday commands, it's done instantly in code instead of a job (then job is null and say is null): 'volume N', 'volume up', 'volume down', 'mute', 'unmute', 'unmute N', 'volume?' (their PC's sound); 'spotify volume N' / 'spotify volume up|down'; 'lights off', 'lights on', 'lights <red|orange|yellow|green|blue|purple|pink|white|warm|cyan>', 'lights <party|rainbow|flow|breathe|candle|ocean|sunset|aurora>', 'lights music' (sync to music), 'lights night' (dim warm), 'lights brightness N', 'lights?' (what they're doing now); 'weather <place>' (current weather; just 'weather' for here); 'price <bitcoin|eth|solana|doge>'; 'hn' (top Hacker News post). A list of strings for several. Else null>",
   "look": "<if job: up to 3 read-only look-ups it will surely need first, done before it starts so its first step already has them: 'mail: <gmail-style search>', 'calendar: <days ahead>', 'canvas', 'web: <search words>', 'page: <url>'; a list; else null>",
-  "sat": "<if they want something CHANGED or SENT for StudentA or StudentB (the SAT Coach students): a score to record, tests they've done, a note, a message to pass on to them, an email, pause/resume their texts; that instruction in plain words, like 'studentb got 1250 rw 650 math 600' or 'tell studenta to finish test 4 tonight'. Questions about them are NOT this: answer those yourself in say from the StudentA and StudentB section. Else null>",
   "more": "<if the text asks for MORE THAN ONE separate thing (often several texts in a row): the first goes in the fields above and each other one is an object in this list, with the same keys (job/label/action/add_to/remind_at/...; its own say only if needed); else null>"}}
 Rules:
 - temporary states (paused, resume, on/off, "for now", "until I say") go in "standing", never into "add_text" or a job's task: a task keeps what to do, "standing" keeps what's true right now, and the newest standing text wins.
@@ -4471,7 +4432,7 @@ Rules:
 - small talk, quick facts, math, advice, opinions: answer yourself in "say", job null.
 - "update?", "so?", "status?", "you there?" and other questions about what you're doing: answer from "Your jobs" in "say" (what each is on right now; say plainly if nothing is running), job null. Never start work from these.
 - anything that needs looking something up live, their PC, accounts, files, screen, web, sending things: put it in "job" and make "say" a short natural heads-up ("ok pulling it up", "on it, one sec" is too robotic; vary it, sound human).
-- emailing or texting someone for them (not StudentA or StudentB, that's "sat"): the job writes it and shows them the draft before anything goes out, so "say" is like "i'll write it up so you can check it", never "sending it now". Never write "authorizes sending", "no approval needed" or "don't ask" into a job unless their own text says to send it as is ("send it", "send it now", "don't ask me").
+- emailing or texting someone for them: the job writes it and shows them the draft before anything goes out, so "say" is like "i'll write it up so you can check it", never "sending it now". Never write "authorizes sending", "no approval needed" or "don't ask" into a job unless their own text says to send it as is ("send it", "send it now", "don't ask me").
 - a vague follow-up ("do the same for X", "the other one", "that one") that fits two different things in the chat or your jobs: ask which in one short line naming both, job null. Never guess when the job would send something to someone.
 - "standing" holds only what this text sets or changes, in their words. Don't restate, merge or add other rules (eligibility, scope, other topics) from memory. A one-time "cancel/stop X" is "cancel", not a standing rule (it must not block their next asks).
 - a reply that doesn't answer a job's question ("lol ok", "the thing", "bro", "asdf") is not an answer: add_to null, reply in "say" (one short line asking what they mean, if needed). Never turn a vague reply into "proceed" or "send".
@@ -4485,7 +4446,6 @@ Rules:
 - "what can you do?", "what would make you better?", "what should I install?": answer from "About you" (what you have, what's missing and what each would unlock). If they say to go ahead and upgrade yourself, that's a job: install it on your own computer.
 - {voice}
 - their PC's volume, the lights (the LED strip) and current weather/prices/top HN post go in "fast", never a job, even with typos ("sync the lgiths to the music" = "lights music"). Something more (a schedule, other apps or devices, several steps, a forecast) is a job.
-- questions about StudentA or StudentB (how they're doing, did they text, what they said, scores, what's due today, scholarships) are answered in "say" from the "StudentA and StudentB" section, job null. Only something not in it (an old text, a deeper look) is a job, which can read their files.
 - never mention JSON, tools, agents, ids or models.
 
 Now: {now}
@@ -4494,8 +4454,6 @@ What you know about them:
 {memory}
 Standing instructions (newest wins):
 {standing}
-StudentA and StudentB (the SAT Coach you run for them):
-{sat}
 Your jobs:
 {running}
 Recent chat (oldest first):
@@ -4504,18 +4462,7 @@ Their new text: {text}"""
 
 FRONT_KEYS = ("say", "job", "label", "add_to", "add_text", "cancel", "repeat", "remind_at", "remember",
               "action", "watch", "watch_every", "notify", "computer", "live", "approve", "standing", "more",
-              "fast", "look", "sat")
-
-
-def sat_context(text):
-    """StudentA and StudentB for the owner's own chats (the owner asked for it, 2026-10-26). One way only:
-    the owner reads the coach's data; nothing of Dot's ever reaches the students."""
-    try:
-        import pd_satcoach
-        return pd_satcoach.owner_context(text)
-    except Exception as e:
-        print(f"[sat context] {e}", file=sys.stderr)
-        return "(couldn't read the SAT Coach right now)"
+              "fast", "look")
 
 
 def chat_history(chat, n=14):
@@ -4577,12 +4524,10 @@ def front_brain(text, chat):
             return None
         history = "\n".join(f"{'them' if m['from'] == 'you' else 'you'}: {m['text'][:400]}"
                             for m in chat_history(chat, 14))
-        extras = owner_extras()
         prompt = _front_template().format(
             persona=PERSONA, voice=DOT_STYLE.split(" When a job")[0], now=datetime.datetime.now().strftime("%A %b %d %Y, %I:%M %p"),
             memory=memory_for(text) or "(nothing yet)", standing=standing_text() or "(none)",
-            running=jobs_text(chat), chat=history or "(new chat)", text=text, self=self_text(short=True),
-            sat=sat_context(text + "\n" + history[-600:]) if extras else "")
+            running=jobs_text(chat), chat=history or "(new chat)", text=text, self=self_text(short=True))
         model = FRONT_MODEL or s.FAST_STEP_MODEL
         plan = None
         for _try in range(2):  # an empty or broken plan gets one more try, never silence
@@ -4639,10 +4584,6 @@ def _conversation_for(chat):
 
 SCREEN_PC_RE = r"^(ss|screenshot|screen|my screen|show (me )?(my|the) screen|what'?s on my screen|send (me )?(a )?screenshot)[?.! ]*$"
 SCREEN_VM_RE = r"^(your screen|show (me )?your screen|what'?s on your screen|dot ?pc|your (pc|computer))[?.! ]*$"
-SAT_RE = (r"^sat(:|\s*$|\s+(status|recap|links?|help|studenta|studentb|both|tell|pause|resume|unpause|stop|start|"
-          r"update|score|note|email)\b)")
-OWNERQ_RE = (r"^((start |answer |do )?(my |the )?(app(lication)? )?questions|captchas?|(do |start )?(my |the )?captchas?"
-             r"|captcha time)[?.! ]*$")
 REPLAY_RE = r"^(replay|show me (a )?replay|show me how you did (it|that)|how'?d you do (it|that))[?.! ]*$"
 STATUS_RE = r"^(status|update|updates|so|and|\?+|any update|whats? up with it|you there|hello\?*|you good)[?.! ]*$"
 # "is it really happening?" questions: answered from what's actually running, never by the quick brain
@@ -4795,29 +4736,14 @@ def handle_text(address, chat, text, files=(), msg_id=None):
             send_to(chat, "couldn't make out that voice message, mind trying again or typing it?")
             return
     files = [f for f in files if f not in voice]
-    extras = owner_extras()  # application questions and the SAT Coach are the owner's alone
-    if extras:
-        import pd_ownerq
-    if extras and files and pd_ownerq.take_file(chat, files):  # the upload an application question asked for
-        return
     if is_imessage_chat(chat) and not files:
         # No buttons in a text thread: the application question showing gets this text as its answer,
         # and "2" picks option 2 of the last "text 1, 2 or 3" Dot sent.
-        if extras and pd_ownerq.take_text(chat, text):
-            return
         picked = _imsg_pick(chat, text)
         if picked is True:
             return
         if picked:
             text = picked
-    if extras and re.match(OWNERQ_RE, text.lower().strip()):
-        target = pd_ownerq.captcha_link if "captcha" in text.lower() else pd_ownerq.ask_next
-        threading.Thread(target=target, args=(chat,), daemon=True).start()
-        return
-    if extras and re.match(SAT_RE, text.lower().strip()):  # the SAT Coach (pd_satcoach): StudentA and StudentB
-        import pd_satcoach
-        threading.Thread(target=pd_satcoach.owner_command, args=(chat, text), daemon=True).start()
-        return
     if files:
         text += "".join(f'\n[they sent a file, saved at "{f}"' +
                         (" (a picture: use read_file on it to see it)]" if f.lower().endswith(
@@ -5055,28 +4981,6 @@ def _draft_first(job, text):
     return re.sub(r"\s{2,}", " ", kept).strip() + "\n" + DRAFT_FIRST_NOTE
 
 
-# 2026-11-05 audit: "pause the apps for tonight" only set the standing text, which the Dot PC's application loops
-# (greenhouse/workday/ats, Claude's portal agent) never read; apply_keepalive and pd_dotlane only honour ~/jobs/PAUSED.
-APPS_TOPIC_RE = re.compile(r"^(applications?|apps|submissions?|application[ _-]?run|lanes?)$", re.I)
-_APPS_PAUSED_RE = re.compile(r"\b(paus\w*|stop\w*|halt\w*|hold\w*|freez\w*|no (new |more )?(submi\w*|appl\w*))\b", re.I)
-_APPS_RESUMED_RE = re.compile(r"\b(resum\w*|unpaus\w*|lift\w*|restart\w*|continu\w*)\b", re.I)
-
-
-def _apps_pause_flag(paused):
-    """~/jobs/PAUSED in the Dot PC: what every application loop there actually checks."""
-    try:
-        import pd_dotlane
-        flag = pd_dotlane.VM_JOBS / "PAUSED"
-        if paused:
-            flag.write_text(f"paused by the owner by text {_stamp()}\n", encoding="utf-8")
-        else:
-            flag.unlink(missing_ok=True)
-        return True
-    except Exception as e:
-        print(f"[apps pause] {e}", file=sys.stderr)
-        return False
-
-
 def _carry_out(plan, chat, text, d, msg_id=None, stopped=None):
     """Do what the quick brain decided for one request. Every part of the plan is
     done (no part ends it early), in this order: settings, cancel, approve, then
@@ -5089,12 +4993,6 @@ def _carry_out(plan, chat, text, d, msg_id=None, stopped=None):
     job = plan.get("job")
     if plan.get("remember"):
         remember(plan["remember"])
-    if plan.get("sat") and owner_extras():  # a change for StudentA/StudentB: the coach does it and answers for itself
-        import pd_satcoach
-        threading.Thread(target=pd_satcoach.owner_command, args=(chat, "sat " + str(plan["sat"])[:600]),
-                         daemon=True).start()
-        if not job and not plan.get("more"):
-            answered = True
     if isinstance(plan.get("notify"), dict):
         for what, on in plan["notify"].items():
             if what in ("inbox", "texts", "deadlines", "brief", "live_screen", "followups"):
@@ -5102,13 +5000,6 @@ def _carry_out(plan, chat, text, d, msg_id=None, stopped=None):
     if isinstance(plan.get("standing"), dict):
         for topic, rule in plan["standing"].items():
             set_standing(topic, rule)
-            if APPS_TOPIC_RE.match(str(topic or "").strip()):
-                rule = str(rule or "")
-                now = re.split(r"\b(until|till|til)\b", rule, maxsplit=1, flags=re.I)[0]  # "paused until they say resume"
-                if _APPS_PAUSED_RE.search(now) and not _APPS_RESUMED_RE.search(now):
-                    _apps_pause_flag(True)
-                elif _APPS_RESUMED_RE.search(now) or not rule.strip():
-                    _apps_pause_flag(False)
     if plan.get("computer"):
         said = set_computer_mode(str(plan["computer"]).lower())
         if said and not say and not job and not plan.get("add_to"):
@@ -5174,9 +5065,7 @@ def _carry_out(plan, chat, text, d, msg_id=None, stopped=None):
             job = text  # the quick way didn't work: the full agent does it
     if not job and not used_job and target is None and say and "?" not in say and _CLAIMS_WORK_RE.search(say) and not any(
             plan.get(k) for k in ("remember", "standing", "notify", "computer", "cancel", "approve",
-                                  "action", "watch", "remind_at", "fast", "sat")):
-        # ("sat": the SAT Coach is doing it. 2026-10-26 2:30 PM "i'll send it to both" also made a job, which
-        # couldn't text them and told the owner, wrongly, that nothing had been sent.)
+                                  "action", "watch", "remind_at", "fast")):
         job = text  # it said it would do something: that something starts as a job
     if job and not used_job:
         job = _draft_first(job, text)
@@ -5263,7 +5152,6 @@ def _reminder_text(text):
 
 STATUS_PLAIN = {"queued": "up next", "working": "working on it", "waiting": "waiting on you",
                 "sleeping": "sleeping", "done": "done", "failed": "hit a problem", "stuck": "stuck"}
-
 
 
 def line_loop():
@@ -5642,11 +5530,6 @@ def serve(replace=False):
     threading.Thread(target=pd_dotwatch.watch_loop, daemon=True, name="dot-watch").start()
     threading.Thread(target=_live().warm_up_voice, daemon=True, name="dot-voice").start()
     threading.Thread(target=_inventory_loop, daemon=True, name="dot-inventory").start()
-    if owner_extras():  # the owner's application codes and SAT Coach; never on a friend's install
-        import pd_codes
-        threading.Thread(target=pd_codes.loop, daemon=True, name="dot-codes").start()
-        import pd_satcoach
-        threading.Thread(target=pd_satcoach.start, daemon=True, name="dot-sat").start()
     print("Dot is running. Page:", *page_links(), sep="\n  ")
     worker()
 
@@ -5726,7 +5609,7 @@ def doctor(live=True):
     print("Checking Dot on this computer:\n")
     only = bool(getattr(s, "claude_only", None) and s.claude_only())
     line(True if only else None, "Thinks with your own Claude plan (Claude-only mode)" if only else
-         "Thinks with the remote backend's AI (Claude-only mode is off)",
+         "Thinks with the server's AI (Claude-only mode is off)",
          "set PERIOD_BACKEND=claude (the Mac installer does this)")
     import pd_claudecall as cc
     exe = cc.cli()[0]
@@ -5765,8 +5648,6 @@ def doctor(live=True):
              f"run: python3 \"{HERE / 'pd_dots.py'}\" install")
         line(True if shutil.which("tailscale") or Path("/Applications/Tailscale.app").exists() else None,
              "Tailscale (opens the Dots page from your phone)", "optional: install Tailscale from the App Store")
-    line(True if not owner_extras() else None, "Owner-only add-ons are off" if not owner_extras() else
-         "Owner-only add-ons are ON (job applications, SAT Coach)", "")
     print("\nAll set." if ok_all else "\nFix the FIX lines above, then run this again.")
     return ok_all
 
@@ -5791,9 +5672,6 @@ def setup_mac():
     ui["backend"] = "claude"
     s.UI_PATH.parent.mkdir(parents=True, exist_ok=True)
     s.UI_PATH.write_text(json.dumps(ui, indent=2), encoding="utf-8")
-    st = settings()
-    st["owner_extras"] = False
-    save_settings(st)
     print("Dot will think with your own Claude plan (Claude Code), never anyone else's.\n")
     try:
         connected = s.discord_connected() and settings().get("discord_dm")

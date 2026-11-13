@@ -5,24 +5,24 @@ every tool block, and runs each tool through the same gates as before (pd_policy
 and safety gate, CONFIRM_TOOLS, the Relay hooks, "QUESTION: send it?" approval). Only the
 step that turns a prompt into a reply changes: inside the job process, s.call_api is
 swapped for a wrapper that asks the owner's Claude plan through `claude -p` instead of
-the remote backend's gateway.
+the server's gateway.
 
 Claude gets no tools of its own (--tools "" --strict-mcp-config --setting-sources "",
 --permission-mode dontAsk), so all it can do is write text. Any action is still a tool
 block that Dot's loop parses and gates. It never gets --dangerously-skip-permissions,
 --bare or --allowedTools.
 
-Why: a remote backend opus step takes a median 10-12 s (5.8 s to the first word), with a
+Why: a server opus step takes a median 10-12 s (5.8 s to the first word), with a
 6-a-minute pacing limit and 2-at-once slots shared with the application lanes. Lean
 `claude -p` gives a first word in about 1.5 s and has no per-minute limit.
 
-Falls back to the remote backend on its own: any failure (no output, error, empty reply, timeout,
-the plan's usage limit) hands the same step to the remote backend. Mid-conversation, the remote backend gets a
+Falls back to the server on its own: any failure (no output, error, empty reply, timeout,
+the plan's usage limit) hands the same step to the server. Mid-conversation, the server gets a
 replay of the task so far, so the job carries on instead of starting over.
 
 Off switches: env PERIOD_DOT_CLAUDE=off, the file ~/.period_dots/claude_engine_off,
-or Period's remote-only setting. Lanes, autonomous jobs, watches and reminders
-always stay on the remote backend.
+or Period's server-only setting. Lanes, autonomous jobs, watches and reminders
+always stay on the server.
 """
 import json
 import os
@@ -43,8 +43,8 @@ BACKOFF = DOTS_DIR / "claude_engine_backoff.json"
 OFF_FILE = DOTS_DIR / "claude_engine_off"
 
 MODELS = {"claude-opus-5-5": "claude-opus-5-5", "claude-sonnet-5-5": "claude-sonnet-5-5"}
-# Claude-only installs (no remote backend account, e.g. a friend's Mac): every model Period names maps to one
-# their own Claude plan has. the remote backend's fast/other models (gpt-*, Kimi, gemini...) become the fast Claude model.
+# Claude-only installs (no server account, e.g. a friend's Mac): every model Period names maps to one
+# their own Claude plan has. The server's fast/other models (gpt-*, Kimi, gemini...) become the fast Claude model.
 ONLY_MODELS = {**MODELS, "claude-haiku-5-5": "claude-haiku-5-5"}
 ONLY_FAST_MODEL = os.environ.get("PERIOD_CLAUDE_FAST_MODEL", "claude-sonnet-5-5")
 FIRST_EVENT_TIMEOUT = 60
@@ -154,7 +154,7 @@ def enabled(dot, s, is_lane=None, autonomous=None):
         return False, "Claude Code isn't installed"
     try:
         if getattr(s, "remote_only", None) and s.remote_only():
-            return False, "remote-only mode"
+            return False, "server-only mode"
     except Exception:
         pass
     if backoff_left() > 0:
@@ -281,7 +281,7 @@ def _run_claude(s, prompt, model, sid, resume, images=None):
         tool_filter = None
         try:
             if getattr(s, "StreamingToolFilter", None) is not None and getattr(s, "console", None) is not None:
-                tool_filter = s.StreamingToolFilter(s.console)  # the reply shows in the job's log, as on the remote backend
+                tool_filter = s.StreamingToolFilter(s.console)  # the reply shows in the job's log, as on the server
         except Exception:
             tool_filter = None
         while True:
@@ -434,7 +434,7 @@ def _save_turn(sid, prompt, reply, first):
 
 
 def replay_prompt(sid, prompt):
-    """The task so far, for a model that hasn't seen it (the remote backend taking over a Claude conversation)."""
+    """The task so far, for a model that hasn't seen it (the server taking over a Claude conversation)."""
     rows = _turns(sid)
     if not rows:
         return prompt
@@ -462,7 +462,7 @@ class Engine:
 
     def __init__(self, s, orig, job_id="", use_claude=True, why=""):
         self.s, self._orig, self.job, self.use_claude, self.why = s, orig, job_id, use_claude, why
-        self._replays = {}  # the remote backend conversation id -> the replay prompt, until the remote backend answers once
+        self._replays = {}  # the server conversation id -> the replay prompt, until the server answers once
         self.used = []      # "claude" / "remote" per call, for the job's log
 
     def __call__(self, prompt, model, endpoint, access_token, config, conversation_id=None,
@@ -470,7 +470,7 @@ class Engine:
         orig = self._orig
         claude_conv = str(parent_message_id or "").startswith("cc:")
         if conversation_id in self._replays and not parent_message_id:
-            # the remote backend's first try at a replay failed and the loop is re-sending: it still needs the replay.
+            # The server's first try at a replay failed and the loop is re-sending: it still needs the replay.
             replay = self._replays.pop(conversation_id)
             return self._to_remote(replay, model, endpoint, access_token, config)
         usable = (self.use_claude and model in MODELS and not attached_files
@@ -478,7 +478,7 @@ class Engine:
                   and not os.environ.get("PERIOD_DOT_CLAUDE", "").strip().lower() in _OFF_WORDS
                   and not OFF_FILE.exists() and not self._remote_only())
         if not usable:
-            if claude_conv:  # a Claude conversation the remote backend has never seen: give it the task so far
+            if claude_conv:  # a Claude conversation the server has never seen: give it the task so far
                 return self._to_remote(replay_prompt(conversation_id, prompt), model, endpoint,
                                          access_token, config)
             self.used.append("remote")
@@ -509,7 +509,7 @@ class Engine:
         return text, sid, f"cc:{turn}"
 
     def _remote_only(self):
-        # Checked on every call, not only at install: remote-only turned on mid-job means the very
+        # Checked on every call, not only at install: server-only turned on mid-job means the very
         # next step (and its mail text) must not go to Claude. An error here counts as "on" (fail closed).
         try:
             fn = getattr(self.s, "remote_only", None)
@@ -534,8 +534,8 @@ def only_model(model):
     return model if model in ONLY_MODELS else ONLY_FAST_MODEL
 
 
-# Claude-only installs keep their own rest file: the remote backend-backed installs rest Claude at 90% of the plan
-# (the remote backend takes over), but with no remote backend there's nothing to hand over to, so only a real refusal rests.
+# Claude-only installs keep their own rest file: the server-backed installs rest Claude at 90% of the plan
+# (the server takes over), but with no server there's nothing to hand over to, so only a real refusal rests.
 ONLY_BACKOFF = DOTS_DIR / "claude_only_backoff.json"
 TRANSIENT_RETRIES = 1
 
@@ -550,7 +550,7 @@ def only_backoff_left():
 
 def call_only(s, prompt, model, conversation_id=None, parent_message_id=None, attached_files=None):
     """call_api for a claude-only install: same contract, (reply, conversation_id, parent_id).
-    Errors come back as "[Error ...]" replies like the remote backend's: a hiccup as "[Error connecting to server]"
+    Errors come back as "[Error ...]" replies like the server's: a hiccup as "[Error connecting to server]"
     (the agent loop retries those), the plan's limit or a signed-out Claude Code as a plain error."""
     if _under_tests():
         return "[Error claude]: test run (the real Claude plan is never called from tests)", \
@@ -593,7 +593,7 @@ def call_only(s, prompt, model, conversation_id=None, parent_message_id=None, at
             if attempt >= TRANSIENT_RETRIES:
                 return f"[Error connecting to server]: Claude Code: {reason}", conversation_id, parent_message_id
             time.sleep(2)
-    try:  # the 90%-used rest is only for the remote backend-backed installs
+    try:  # the 90%-used rest is only for the server-backed installs
         if "% used" in str(_read_json(BACKOFF).get("why") or ""):
             BACKOFF.unlink()
     except Exception:
@@ -608,11 +608,11 @@ def call_only(s, prompt, model, conversation_id=None, parent_message_id=None, at
 
 def install(s, dot, is_lane=None, autonomous=None):
     """Swap s.call_api for the Claude engine in this job process. Returns a handle for uninstall, or None.
-    Also installed (the remote backend only) when the job's conversation is a Claude one but Claude can't be used
-    now, so the remote backend gets the task so far instead of an empty conversation."""
+    Also installed (the server only) when the job's conversation is a Claude one but Claude can't be used
+    now, so the server gets the task so far instead of an empty conversation."""
     try:
         if getattr(s, "claude_only", None) and s.claude_only():
-            return None  # s.call_api already goes to Claude (call_only); there's no remote backend to fall back to
+            return None  # s.call_api already goes to Claude (call_only); there's no server to fall back to
     except Exception:
         pass
     if autonomous is None:
@@ -630,6 +630,11 @@ def install(s, dot, is_lane=None, autonomous=None):
 
 def describe(dot, s, handle, is_lane=None, autonomous=None):
     """The job-log line: which model engine this run uses."""
+    try:
+        if getattr(s, "claude_only", None) and s.claude_only():
+            return "engine: claude (claude-only: this computer's own Claude Code plan)"
+    except Exception:
+        pass
     if handle and handle.get("ok"):
         return "engine: claude"
     why = (handle or {}).get("why")

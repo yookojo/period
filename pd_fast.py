@@ -1,6 +1,6 @@
 """Fast paths: the owner's everyday asks done in code, with no model turn.
 
-Speed is the owner's biggest complaint, and the limit is the remote backend's ~6 sends a
+Speed is the owner's biggest complaint, and the limit is the server's ~6 sends a
 minute, not the tools. Before this, "put the volume to like 28%" cost a quick
 brain send (~5 s), a job process, and two Opus turns (~25 s, 2 sends) for a
 0.03 s change. The week of 10/19 had 6 volume jobs, 5 LED-strip jobs (one took

@@ -1,12 +1,12 @@
-# Dot on a Mac
+# Period on a Mac
 
-Dot runs the same way on a Mac as it does on the original Windows PC, with three differences:
+Period (the assistant inside calls itself Dot) has three parts on a Mac:
 
-| | Windows (original) | Mac |
-|---|---|---|
-| Thinks with | the remote backend's AI, plus the owner's Claude plan for jobs | **Only your own Claude plan** (`claude -p`) |
-| Dot's own computer | Ubuntu in WSL | Ubuntu in a **Lima** VM (optional) |
-| Starts at login | Task Scheduler | **launchd** (`~/Library/LaunchAgents/com.period.dot.plist`) |
+| | On your Mac |
+|---|---|
+| Thinks with | **Only your own Claude plan**, through Claude Code (`claude -p`) |
+| Its own computer | Ubuntu in a **Lima** VM (optional) |
+| Starts at login | **launchd** (`~/Library/LaunchAgents/com.period.dot.plist`) |
 
 ## What you need
 

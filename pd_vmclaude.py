@@ -1,6 +1,6 @@
 """Dot hands big chunks of work to Claude Code on its own computer (the Dot PC).
 
-Claude runs on the user's Claude account, not the remote backend's 6-sends-a-minute limit,
+Claude runs on the user's Claude account, not the server's 6-sends-a-minute limit,
 and works through every step of a chunk by itself ("write a script that applies
 to all the Ashby jobs", "fill and submit these 5 Greenhouse forms"). Dot spends
 one step to start it and one to read the report; the wait in between costs no
